@@ -1,11 +1,15 @@
-from fastapi import FastAPI
+from pydantic import BaseModel
+from fastapi import FastAPI, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from typing import List, Optional, Dict
 import pandas as pd
 import os, time, uuid
 from datetime import datetime
+from model.inference import TreeIdentifier
+from model.model_loader import load_resnet18, get_transform
+
+Identifier = None
 
 app = FastAPI(title="PetreeBlitz API")
 
@@ -41,6 +45,15 @@ if os.path.exists('./Trees'):
     app.mount("/trees", StaticFiles(directory="./Trees"), name="trees")
 
 # ===== API endpoints =====
+@app.post("/identify", response_model=dict)
+async def identify_image(file: UploadFile = File(...)):
+    if not identifier:
+        return JSONResponse(status_code=503, content={"detail": "Model not ready"})
+    
+    image_bytes = await file.read()
+    result = identifier.identify(image_bytes)
+    return result
+
 @app.get("/albums", response_model=List[AlbumModel])
 def get_albums():
     return [AlbumModel(album_id=a, name=ALBUMS[a]["name"], num_images=len(ALBUMS[a]["sample_ids"]))
@@ -92,7 +105,17 @@ def populate_albums_from_df(df):
 
 @app.on_event("startup")
 async def startup_event():
-    if os.path.exists('tree_patches_with_clusters.csv'):
-        df = pd.read_csv('tree_patches_with_clusters.csv')
+    print("path: ", os.getcwd())
+    csv_path = 'data/tree_patches_with_clusters.csv'
+    
+    if os.path.exists(csv_path):
+        df = pd.read_csv(csv_path)
         populate_albums_from_df(df)
+        
+        # Initialize the helper only if data is loaded
+        global identifier
+        identifier = TreeIdentifier(load_resnet18(), get_transform(), SAMPLES)
+        
         print(f"Loaded {len(SAMPLES)} samples into {len(ALBUMS)} albums")
+    else:
+        print(f"WARNING: {csv_path} not found. Identification will be disabled.")
