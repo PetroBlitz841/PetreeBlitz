@@ -3,7 +3,7 @@ from PIL import Image
 import pandas as pd
 from tqdm import tqdm
 
-def data_preprocess(images_dir='./Trees', patches_dir='./patches'):
+def data_preprocess(images_dir='data/Trees', patches_dir='data/patches'):
     """Split images into 4x4 patches and save to patches_dir."""
     os.makedirs(patches_dir, exist_ok=True)
     image_files = [f for f in os.listdir(images_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]

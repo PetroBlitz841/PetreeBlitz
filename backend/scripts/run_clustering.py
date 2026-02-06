@@ -21,8 +21,9 @@ if __name__ == '__main__':
     df['tree_name'] = df.original_name.str[:-4]
 
     # 4. UMAP plot
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     plot_umap_from_df(df, emb_col='normalized_embedding', name_col='tree_name',
-                      n_neighbors=20, min_dist=0.1, savefile='umap_tree_patches.png')
+                      n_neighbors=20, min_dist=0.1, savefile=f'../generated/umap/umap_tree_patches_{timestamp}.png')
 
     # 5. Patch-level clustering
     df = cluster_embeddings_dbscan(df, emb_column='normalized_embedding', eps=0.1, min_samples=2, metric='euclidean')
@@ -31,5 +32,5 @@ if __name__ == '__main__':
     df = apply_majority_vote_clustering(df, tree_col='tree_name', cluster_col='cluster')
 
     # 7. Save result
-    df.to_csv('tree_patches_with_clusters.csv', index=False)
+    df.to_csv('data/tree_patches_with_clusters.csv', index=False)
     print("Clustering completed and saved to tree_patches_with_clusters.csv")
