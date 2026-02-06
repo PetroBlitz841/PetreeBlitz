@@ -10,8 +10,29 @@ class TreeIdentifier:
         self.model = model
         self.transform = transform
         # Pre-calculate matrix of known embeddings for speed
-        self.known_embeddings = np.array([s["embedding"] for s in known_samples.values()])
-        self.known_labels = [s["album_id"] for s in known_samples.values()]
+        embeddings_list = []
+        labels_list = []
+        
+        for s in known_samples.values():
+            # Skip samples that don't have embeddings (e.g., uploaded samples without computed embeddings)
+            if "embedding" not in s:
+                continue
+            
+            emb = s["embedding"]
+            # Ensure embedding is a numpy array
+            if not isinstance(emb, np.ndarray):
+                emb = np.array(emb)
+            # Flatten to 1D if needed
+            emb = emb.flatten()
+            embeddings_list.append(emb)
+            labels_list.append(s["album_id"])
+        
+        # Create 2D array (num_samples x embedding_dim)
+        self.known_embeddings = np.array(embeddings_list)
+        self.known_labels = labels_list
+        
+        if self.known_embeddings.ndim != 2:
+            raise ValueError(f"Expected 2D embeddings array, got shape {self.known_embeddings.shape}")
 
     def _get_patches(self, image_bytes):
         im = Image.open(BytesIO(image_bytes)).convert('RGB')
@@ -32,17 +53,32 @@ class TreeIdentifier:
             tensor = self.transform(patch).unsqueeze(0)
             with torch.no_grad():
                 emb = self.model(tensor).squeeze().cpu().numpy()
+                # Flatten to 1D
+                emb = emb.flatten()
+                # Normalize
                 emb = emb / (np.linalg.norm(emb) + 1e-12)
                 new_embeddings.append(emb)
 
+        # Convert to 2D array (num_patches x embedding_dim)
+        new_embeddings = np.array(new_embeddings)
+        if new_embeddings.ndim != 2:
+            raise ValueError(f"Expected 2D embeddings array, got shape {new_embeddings.shape}")
+        
         # Vector comparison
         distances = cdist(new_embeddings, self.known_embeddings, metric='cosine')
         closest_indices = np.argmin(distances, axis=1)
         votes = [self.known_labels[idx] for idx in closest_indices]
         
-        winner, count = Counter(votes).most_common(1)[0]
-        return {
-            "species": winner.replace("cluster_", ""),
-            "confidence": count / 16,
-            "agreement": f"{count}/16 patches"
-        }
+        # Get vote counts for all species
+        vote_counts = Counter(votes)
+        total_votes = len(votes)
+        
+        # Create predictions list sorted by confidence (highest first)
+        predictions = []
+        for species, count in vote_counts.most_common():
+            predictions.append({
+                "label": species.replace("cluster_", ""),
+                "confidence": round(count / total_votes, 2)
+            })
+        
+        return predictions
