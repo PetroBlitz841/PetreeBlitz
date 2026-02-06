@@ -39,10 +39,10 @@ SAMPLES: Dict = {}
 ALBUMS: Dict = {}
 
 # ===== Static files =====
-if os.path.exists('./patches'):
-    app.mount("/patches", StaticFiles(directory="./patches"), name="patches")
-if os.path.exists('./Trees'):
-    app.mount("/trees", StaticFiles(directory="./Trees"), name="trees")
+if os.path.exists('data/patches'):
+    app.mount("/patches", StaticFiles(directory="./data/patches"), name="patches")
+if os.path.exists('data/Trees'):
+    app.mount("/trees", StaticFiles(directory="./data/Trees"), name="trees")
 
 # ===== API endpoints =====
 @app.post("/identify", response_model=dict)
