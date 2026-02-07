@@ -1,26 +1,25 @@
 from pydantic import BaseModel
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from typing import List, Optional, Dict
+from typing import List, Optional
 import pandas as pd
 import os
 import uuid
 from datetime import datetime
+import numpy as np
+from sqlalchemy.orm import Session
 
+from db import init_db, get_db, Album, Sample, Feedback, Embedding, SessionLocal
 from model.inference import TreeIdentifier
 from model.model_loader import load_resnet18, get_transform
 from model.learning import rebuild_identifier_with_learning
-from model.utils.loader import populate_albums_from_df
+from model.utils.loader import populate_albums_from_db
 
 # ===== Global State =====
 identifier = None
 model = None
 transform = None
-
-# ===== In-memory storage =====
-SAMPLES: Dict = {}
-ALBUMS: Dict = {}
 
 # ===== Pydantic Models =====
 class PredictionModel(BaseModel):
@@ -66,10 +65,23 @@ if os.path.exists('data/patches'):
 if os.path.exists('data/Trees'):
     app.mount("/trees", StaticFiles(directory="./data/Trees"), name="trees")
 
+def get_image_url(path: str) -> str:
+    """
+    Convert a local path like 'data/patches/tree1.jpg' to a URL like '/patches/tree1.jpg'
+    """
+    if path.startswith("data/patches"):
+        filename = os.path.basename(path)
+        return f"/patches/{filename}"
+    elif path.startswith("data/Trees"):
+        filename = os.path.basename(path)
+        return f"/trees/{filename}"
+    else:
+        return path  # fallback
+
 
 # ===== API Endpoints =====
 @app.post("/identify", response_model=dict)
-async def identify_image(file: UploadFile = File(...)):
+async def identify_image(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Identify a tree image and return predictions."""
     if not identifier:
         return JSONResponse(status_code=503, content={"detail": "Model not ready"})
@@ -78,14 +90,16 @@ async def identify_image(file: UploadFile = File(...)):
     predictions = identifier.identify(image_bytes)
     
     sample_id = str(uuid.uuid4())
-    # Store the image bytes so we can recompute embeddings when learning from feedback
-    SAMPLES[sample_id] = {
-        "image_bytes": image_bytes,
-        "predictions": predictions,
-        "feedback": None,
-        "timestamp": __import__('time').time(),
-        "album_id": None  # Will be set when feedback is received
-    }
+    
+    # Store sample in database
+    db_sample = Sample(
+        sample_id=sample_id,
+        image_bytes=image_bytes,
+        predictions=predictions,
+        timestamp=datetime.utcnow()
+    )
+    db.add(db_sample)
+    db.commit()
     
     return {
         "predictions": predictions,
@@ -94,67 +108,75 @@ async def identify_image(file: UploadFile = File(...)):
 
 
 @app.post("/feedback", response_model=FeedbackResponseModel)
-async def submit_feedback(feedback: FeedbackRequestModel):
+async def submit_feedback(feedback: FeedbackRequestModel, db: Session = Depends(get_db)):
     """Submit feedback for a sample to help the model learn."""
     global identifier
     
     sample_id = feedback.sample_id
     
     # Check if sample exists
-    if sample_id not in SAMPLES:
+    sample = db.query(Sample).filter(Sample.sample_id == sample_id).first()
+    if not sample:
         return JSONResponse(
             status_code=404,
             content={"status": "not found"}
         )
     
-    sample = SAMPLES[sample_id]
-    
-    # Store feedback
-    sample["feedback"] = {
-        "was_correct": feedback.was_correct,
-        "correct_label": feedback.correct_label
-    }
+    # Store feedback in database
+    feedback_id = str(uuid.uuid4())
+    db_feedback = Feedback(
+        feedback_id=feedback_id,
+        sample_id=sample_id,
+        was_correct=feedback.was_correct,
+        correct_label=feedback.correct_label
+    )
+    db.add(db_feedback)
     
     should_rebuild = False
     correct_label = None
     
     # Learn from corrected predictions
-    if not feedback.was_correct and feedback.correct_label and sample.get("image_bytes"):
+    if not feedback.was_correct and feedback.correct_label and sample.image_bytes:
         should_rebuild = True
         correct_label = feedback.correct_label.replace(" ", "_")
-        sample["album_id"] = correct_label
         
-        # Create or update album
-        if correct_label not in ALBUMS:
-            ALBUMS[correct_label] = {"name": feedback.correct_label, "sample_ids": []}
+        # Create or get album
+        album = db.query(Album).filter(Album.album_id == correct_label).first()
+        if not album:
+            album = Album(album_id=correct_label, name=feedback.correct_label)
+            db.add(album)
+            db.flush()
         
-        if sample_id not in ALBUMS[correct_label]["sample_ids"]:
-            ALBUMS[correct_label]["sample_ids"].append(sample_id)
+        sample.album_id = correct_label
     
     # Also learn from correct predictions to reinforce them
-    elif feedback.was_correct and sample.get("predictions") and sample.get("image_bytes"):
-        # Get the top predicted label
-        if sample["predictions"]:
-            top_prediction = sample["predictions"][0]
+    elif feedback.was_correct and sample.predictions:
+        if sample.predictions:
+            top_prediction = sample.predictions[0]
             correct_label = top_prediction["label"].replace(" ", "_")
             should_rebuild = True
             
-            # Ensure album exists
-            if correct_label not in ALBUMS:
-                ALBUMS[correct_label] = {"name": top_prediction["label"], "sample_ids": []}
+            # Create or get album
+            album = db.query(Album).filter(Album.album_id == correct_label).first()
+            if not album:
+                album = Album(album_id=correct_label, name=top_prediction["label"])
+                db.add(album)
+                db.flush()
             
-            if sample_id not in ALBUMS[correct_label]["sample_ids"]:
-                ALBUMS[correct_label]["sample_ids"].append(sample_id)
+            sample.album_id = correct_label
+    
+    db.commit()
     
     # Rebuild identifier if we learned something
     if should_rebuild and correct_label:
         new_identifier = rebuild_identifier_with_learning(
-            sample_id, sample["image_bytes"], correct_label, SAMPLES, ALBUMS, model, transform
+            sample_id, sample.image_bytes, correct_label, db, model, transform
         )
         
         if new_identifier:
             identifier = new_identifier
-            print(f"Identifier rebuilt with feedback. Now using {len(identifier.known_embeddings)} embeddings")
+            samples_count = db.query(Sample).count()
+            print(f"Identifier rebuilt with feedback. Using {samples_count} samples")
             return FeedbackResponseModel(status="success")
         else:
             print(f"Failed to rebuild identifier")
@@ -163,51 +185,54 @@ async def submit_feedback(feedback: FeedbackRequestModel):
     return FeedbackResponseModel(status="success")
 
 @app.get("/albums", response_model=List[AlbumModel])
-def get_albums():
+def get_albums(db: Session = Depends(get_db)):
     """Get all albums with image counts."""
+    albums = db.query(Album).all()
     result = []
-    for album_id in ALBUMS:
-        # Count unique samples from CSV (those with image_path)
-        csv_samples = set()
-        for sample_id in ALBUMS[album_id]["sample_ids"]:
-            if "image_path" in SAMPLES[sample_id]:
-                csv_samples.add(SAMPLES[sample_id]["image_path"])
+    
+    for album in albums:
+        # Count samples in this album
+        num_images = db.query(Sample).filter(Sample.album_id == album.album_id).count()
         result.append(AlbumModel(
-            album_id=album_id,
-            name=ALBUMS[album_id]["name"],
-            num_images=len(csv_samples)
+            album_id=album.album_id,
+            name=album.name,
+            num_images=num_images
         ))
+    
     return result
 
 
 @app.get("/albums/{album_id}/images", response_model=List[ImageResponseModel])
-def get_album_images(album_id: str):
+def get_album_images(album_id: str, db: Session = Depends(get_db)):
     """Get all images in an album."""
-    if album_id not in ALBUMS:
+    album = db.query(Album).filter(Album.album_id == album_id).first()
+    if not album:
         return JSONResponse(status_code=404, content={"detail": "Album not found"})
     
+    samples = db.query(Sample).filter(Sample.album_id == album_id).all()
     result = []
-    for sample_id in ALBUMS[album_id]["sample_ids"]:
-        s = SAMPLES[sample_id]
-        # Skip samples without image_path (these are learned embeddings)
-        if "image_path" not in s:
+    
+    for sample in samples:
+        # Skip samples without image_path (learned embeddings without original images)
+        if not sample.image_path:
             continue
         
         predictions = [
             PredictionModel(label=p["label"], confidence=p["confidence"])
-            for p in s.get("predictions", [])
+            for p in sample.predictions or []
         ]
+        
         feedback = None
-        if s.get("feedback"):
+        if sample.feedback:
             feedback = FeedbackModel(
-                was_correct=s["feedback"].get("was_correct"),
-                correct_label=s["feedback"].get("correct_label")
+                was_correct=sample.feedback.was_correct,
+                correct_label=sample.feedback.correct_label
             )
         
-        timestamp = datetime.fromtimestamp(s["timestamp"]).isoformat() + "Z"
+        timestamp = sample.timestamp.isoformat() + "Z" if sample.timestamp else ""
         result.append(ImageResponseModel(
-            sample_id=sample_id,
-            image_url=s["image_path"],
+            sample_id=sample.sample_id,
+            image_url=get_image_url(sample.image_path),
             predictions=predictions,
             feedback=feedback,
             timestamp=timestamp
@@ -219,23 +244,45 @@ def get_album_images(album_id: str):
 # ===== Startup Event =====
 @app.on_event("startup")
 async def startup_event():
-    """Initialize model and data on application startup."""
+    """Initialize database and model on application startup."""
     global identifier, model, transform
     
     print("path: ", os.getcwd())
+    
+    # Initialize database
+    init_db()
+    
     csv_path = 'data/tree_patches_with_clusters.csv'
     
     # Load model and transform once for use in learning
     model = load_resnet18()
     transform = get_transform()
     
-    if os.path.exists(csv_path):
-        df = pd.read_csv(csv_path)
-        populate_albums_from_df(df, ALBUMS, SAMPLES)
+    # Use SessionLocal for operations
+    db = SessionLocal()
+    try:
+        # Check if database is already populated
+        existing_albums = db.query(Album).count()
+        
+        if existing_albums == 0 and os.path.exists(csv_path):
+            # Database is empty, load from CSV
+            print(f"Loading data from {csv_path}...")
+            populate_albums_from_db(csv_path, db)
+            print("CSV data loaded into database")
+        elif existing_albums > 0:
+            print(f"Database already populated with {existing_albums} albums, skipping CSV load")
+        else:
+            print(f"WARNING: {csv_path} not found and database is empty. Identification will be disabled.")
+        
+        # Count loaded data
+        samples_count = db.query(Sample).count()
+        albums_count = db.query(Album).count()
         
         # Initialize the identifier only if data is loaded
-        identifier = TreeIdentifier(model, transform, SAMPLES)
-        
-        print(f"Loaded {len(SAMPLES)} samples into {len(ALBUMS)} albums")
-    else:
-        print(f"WARNING: {csv_path} not found. Identification will be disabled.")
+        if albums_count > 0:
+            identifier = TreeIdentifier(model, transform, db)
+            print(f"Identifier initialized with {samples_count} samples from {albums_count} albums")
+        else:
+            print("No data available. Identifier will not be initialized.")
+    finally:
+        db.close()

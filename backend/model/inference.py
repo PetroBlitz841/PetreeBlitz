@@ -1,34 +1,62 @@
 import torch
 import numpy as np
+import pickle
 from PIL import Image
 from io import BytesIO
 from collections import Counter
 from scipy.spatial.distance import cdist
+from sqlalchemy.orm import Session
 
 class TreeIdentifier:
-    def __init__(self, model, transform, known_samples):
+    def __init__(self, model, transform, data_source):
+        """
+        Initialize TreeIdentifier with embeddings.
+        
+        Args:
+            model: PyTorch model for embedding
+            transform: Image transform pipeline
+            data_source: Either a dict of samples (legacy) or a SQLAlchemy Session
+        """
         self.model = model
         self.transform = transform
+        
         # Pre-calculate matrix of known embeddings for speed
         embeddings_list = []
         labels_list = []
         
-        for s in known_samples.values():
-            # Skip samples that don't have embeddings (e.g., uploaded samples without computed embeddings)
-            if "embedding" not in s:
-                continue
+        if isinstance(data_source, Session):
+            # Load embeddings from database
+            from db import Embedding
+            embeddings = data_source.query(Embedding).all()
             
-            emb = s["embedding"]
-            # Ensure embedding is a numpy array
-            if not isinstance(emb, np.ndarray):
-                emb = np.array(emb)
-            # Flatten to 1D if needed
-            emb = emb.flatten()
-            embeddings_list.append(emb)
-            labels_list.append(s["album_id"])
+            for emb_obj in embeddings:
+                # Deserialize the embedding
+                emb = pickle.loads(emb_obj.embedding_vector)
+                # Ensure embedding is a numpy array
+                if not isinstance(emb, np.ndarray):
+                    emb = np.array(emb)
+                # Flatten to 1D if needed
+                emb = emb.flatten()
+                embeddings_list.append(emb)
+                labels_list.append(emb_obj.album_id)
+        else:
+            # Legacy: load from dictionary (for backwards compatibility)
+            for s in data_source.values():
+                # Skip samples that don't have embeddings
+                if "embedding" not in s:
+                    continue
+                
+                emb = s["embedding"]
+                # Ensure embedding is a numpy array
+                if not isinstance(emb, np.ndarray):
+                    emb = np.array(emb)
+                # Flatten to 1D if needed
+                emb = emb.flatten()
+                embeddings_list.append(emb)
+                labels_list.append(s["album_id"])
         
         # Create 2D array (num_samples x embedding_dim)
-        self.known_embeddings = np.array(embeddings_list)
+        self.known_embeddings = np.array(embeddings_list) if embeddings_list else np.empty((0, 512))
         self.known_labels = labels_list
         
         if self.known_embeddings.ndim != 2:
@@ -63,6 +91,10 @@ class TreeIdentifier:
         new_embeddings = np.array(new_embeddings)
         if new_embeddings.ndim != 2:
             raise ValueError(f"Expected 2D embeddings array, got shape {new_embeddings.shape}")
+        
+        # Handle case where no known embeddings
+        if len(self.known_labels) == 0:
+            return [{"label": "unknown", "confidence": 0.0}]
         
         # Vector comparison
         distances = cdist(new_embeddings, self.known_embeddings, metric='cosine')

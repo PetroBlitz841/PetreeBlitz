@@ -1,12 +1,17 @@
 """Model learning utilities for handling feedback and model improvements."""
 
 import time
+import uuid
 import numpy as np
+import pickle
 from PIL import Image
 from io import BytesIO
 import torch
+from datetime import datetime
+from sqlalchemy.orm import Session
 
 from model.inference import TreeIdentifier
+from db import Sample, Album, Embedding
 
 
 def compute_patch_embeddings(image_bytes, album_id, model, transform):
@@ -47,7 +52,7 @@ def compute_patch_embeddings(image_bytes, album_id, model, transform):
     return embeddings
 
 
-def add_learned_embeddings(sample_id, image_bytes, album_id, samples, model, transform, amplification_factor=5):
+def add_learned_embeddings(sample_id: str, image_bytes: bytes, album_id: str, db: Session, model, transform, amplification_factor=5):
     """
     Add new embeddings from corrected feedback to the training set.
     This makes the model learn by having more examples of the correct label.
@@ -57,41 +62,53 @@ def add_learned_embeddings(sample_id, image_bytes, album_id, samples, model, tra
         sample_id: Original sample identifier
         image_bytes: Raw image data
         album_id: Correct label
-        samples: Sample storage dictionary
+        db: SQLAlchemy database session
         model: PyTorch model for embedding
         transform: Image transform pipeline
         amplification_factor: How many times to add the same patches (default 5)
         
     Returns:
-        List of created sample IDs if successful, None if failed
+        List of created embedding IDs if successful, None if failed
     """
     try:
         new_embeddings = compute_patch_embeddings(image_bytes, album_id, model, transform)
         
-        # Create temporary samples from the learned embeddings
+        # Get or create album
+        album = db.query(Album).filter(Album.album_id == album_id).first()
+        if not album:
+            raise ValueError(f"Album {album_id} not found")
+        
+        # Create embeddings from the learned patches
         # Add them multiple times to amplify the learning effect
-        created_samples = []
+        created_embedding_ids = []
         for repeat in range(amplification_factor):
             for idx, (emb, label) in enumerate(new_embeddings):
-                learned_sample_id = f"{sample_id}_patch_{idx}_v{repeat}"
-                samples[learned_sample_id] = {
-                    "embedding": emb,
-                    "album_id": label,
-                    "feedback": {"was_correct": True, "correct_label": None},
-                    "image_bytes": None,  # Don't store all patch image data
-                    "timestamp": time.time(),
-                    "predictions": []
-                }
-                created_samples.append(learned_sample_id)
+                embedding_id = str(uuid.uuid4())
+                embedding_bytes = pickle.dumps(emb)
+                
+                embedding_obj = Embedding(
+                    embedding_id=embedding_id,
+                    album_id=album_id,
+                    original_sample_id=sample_id,
+                    embedding_vector=embedding_bytes,
+                    embedding_dim=len(emb),
+                    is_learned=True,
+                    amplification_iteration=repeat,
+                    patch_index=idx
+                )
+                db.add(embedding_obj)
+                created_embedding_ids.append(embedding_id)
         
-        print(f"Model learned from {len(new_embeddings)} patches × {amplification_factor} amplification = {len(created_samples)} total embeddings for sample {sample_id} -> {album_id}")
-        return created_samples
+        db.commit()
+        print(f"Model learned from {len(new_embeddings)} patches × {amplification_factor} amplification = {len(created_embedding_ids)} total embeddings for sample {sample_id} -> {album_id}")
+        return created_embedding_ids
     except Exception as e:
         print(f"Error learning from embeddings: {e}")
+        db.rollback()
         return None
 
 
-def rebuild_identifier_with_learning(sample_id, image_bytes, album_id, samples, albums, model, transform):
+def rebuild_identifier_with_learning(sample_id: str, image_bytes: bytes, album_id: str, db: Session, model, transform):
     """
     Process feedback correction by learning and rebuilding the model.
     
@@ -99,8 +116,7 @@ def rebuild_identifier_with_learning(sample_id, image_bytes, album_id, samples, 
         sample_id: Original sample identifier
         image_bytes: Raw image data
         album_id: Correct label
-        samples: Sample storage dictionary
-        albums: Album storage dictionary
+        db: SQLAlchemy database session
         model: PyTorch model for embedding
         transform: Image transform pipeline
         
@@ -108,12 +124,12 @@ def rebuild_identifier_with_learning(sample_id, image_bytes, album_id, samples, 
         New TreeIdentifier if successful, None if failed
     """
     # Add learned embeddings
-    created_samples = add_learned_embeddings(sample_id, image_bytes, album_id, samples, model, transform)
+    created_embeddings = add_learned_embeddings(sample_id, image_bytes, album_id, db, model, transform)
     
-    if created_samples:
+    if created_embeddings:
         # Rebuild identifier with new learned embeddings
         try:
-            identifier = TreeIdentifier(model, transform, samples)
+            identifier = TreeIdentifier(model, transform, db)
             return identifier
         except Exception as e:
             print(f"Error rebuilding identifier: {e}")
