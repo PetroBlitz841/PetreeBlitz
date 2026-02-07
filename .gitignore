@@ -3,3 +3,12 @@ node_modules
 **/.pytest_cache/
 **/.venv
 .vscode
+
+# Database files (SQLite)
+*.db
+*.db-shm
+*.db-wal
+
+# Database backups
+backups/
+db_backups/
