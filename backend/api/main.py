@@ -60,10 +60,13 @@ class AlbumModel(BaseModel):
 app = FastAPI(title="PetreeBlitz API")
 
 # ===== Static files =====
-if os.path.exists('data/patches'):
-    app.mount("/patches", StaticFiles(directory="./data/patches"), name="patches")
-if os.path.exists('data/Trees'):
-    app.mount("/trees", StaticFiles(directory="./data/Trees"), name="trees")
+# Ensure folders exist so StaticFiles can be mounted reliably
+os.makedirs(os.path.join('data', 'patches'), exist_ok=True)
+os.makedirs(os.path.join('data', 'Trees'), exist_ok=True)
+
+# Mount static directories for serving images
+app.mount("/patches", StaticFiles(directory="./data/patches"), name="patches")
+app.mount("/trees", StaticFiles(directory="./data/Trees"), name="trees")
 
 def get_image_url(path: str) -> str:
     """
@@ -90,17 +93,40 @@ async def identify_image(file: UploadFile = File(...), db: Session = Depends(get
     predictions = identifier.identify(image_bytes)
     
     sample_id = str(uuid.uuid4())
-    
+
+    # Ensure patches directory exists and save the uploaded file so it can be shown in albums
+    try:
+        patches_dir = os.path.join('data', 'patches')
+        os.makedirs(patches_dir, exist_ok=True)
+
+        # Determine filename extension from uploaded filename
+        _, ext = os.path.splitext(file.filename or '')
+        if not ext:
+            ext = '.jpg'
+
+        filename = f"{sample_id}{ext}"
+        file_fs_path = os.path.join(patches_dir, filename)
+        with open(file_fs_path, 'wb') as f:
+            f.write(image_bytes)
+
+        # Store a web-accessible image path in the DB (consistent with CSV loader '/trees/...')
+        image_path_db = f"/patches/{filename}"
+    except Exception as e:
+        # If saving fails, still store the raw bytes but leave image_path empty
+        print(f"Warning: failed to save uploaded patch file: {e}")
+        image_path_db = None
+
     # Store sample in database
     db_sample = Sample(
         sample_id=sample_id,
         image_bytes=image_bytes,
+        image_path=image_path_db,
         predictions=predictions,
         timestamp=datetime.utcnow()
     )
     db.add(db_sample)
     db.commit()
-    
+
     return {
         "predictions": predictions,
         "sample_id": sample_id
@@ -148,6 +174,20 @@ async def submit_feedback(feedback: FeedbackRequestModel, db: Session = Depends(
             db.flush()
         
         sample.album_id = correct_label
+
+        # If the sample has image bytes but no stored image_path (e.g., recently identified),
+        # save the image to the patches directory so it appears in album image lists.
+        try:
+            if sample.image_bytes and not sample.image_path:
+                patches_dir = os.path.join('data', 'patches')
+                os.makedirs(patches_dir, exist_ok=True)
+                filename = f"{sample.sample_id}.jpg"
+                file_fs_path = os.path.join(patches_dir, filename)
+                with open(file_fs_path, 'wb') as f:
+                    f.write(sample.image_bytes)
+                sample.image_path = f"/patches/{filename}"
+        except Exception as e:
+            print(f"Warning: failed to persist sample image on feedback: {e}")
     
     # Also learn from correct predictions to reinforce them
     elif feedback.was_correct and sample.predictions:
@@ -164,6 +204,19 @@ async def submit_feedback(feedback: FeedbackRequestModel, db: Session = Depends(
                 db.flush()
             
             sample.album_id = correct_label
+
+            # Ensure image_path exists for display in albums
+            try:
+                if sample.image_bytes and not sample.image_path:
+                    patches_dir = os.path.join('data', 'patches')
+                    os.makedirs(patches_dir, exist_ok=True)
+                    filename = f"{sample.sample_id}.jpg"
+                    file_fs_path = os.path.join(patches_dir, filename)
+                    with open(file_fs_path, 'wb') as f:
+                        f.write(sample.image_bytes)
+                    sample.image_path = f"/patches/{filename}"
+            except Exception as e:
+                print(f"Warning: failed to persist sample image on feedback: {e}")
     
     db.commit()
     
