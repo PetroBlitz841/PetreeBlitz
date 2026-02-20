@@ -12,3 +12,5 @@ node_modules
 # Database backups
 backups/
 db_backups/
+
+example/
