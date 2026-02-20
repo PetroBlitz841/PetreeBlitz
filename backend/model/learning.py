@@ -1,138 +1,163 @@
 """Model learning utilities for handling feedback and model improvements."""
-
-import time
 import uuid
 import numpy as np
-import pickle
-from PIL import Image
-from io import BytesIO
 import torch
 from datetime import datetime
+from PIL import Image
+from io import BytesIO
 from sqlalchemy.orm import Session
 
-from model.inference import TreeIdentifier
-from db import Sample, Album, Embedding
+from db import Embedding, Album
 
+PATCH_SIZE = 896
+GRID = 4
 
-def compute_patch_embeddings(image_bytes, album_id, model, transform):
+def compute_patch_embeddings(image_bytes, model, transform, device="cpu"):
     """
-    Compute embeddings from image bytes for all 16 patches.
-    
-    Args:
-        image_bytes: Raw image data
-        album_id: Label for the patches
-        model: PyTorch model for embedding
-        transform: Image transform pipeline
-        
-    Returns:
-        List of (embedding, label) tuples
+    Efficiently compute normalized embeddings for 16 patches using batch inference.
     """
-    if not model or not transform:
+    if model is None or transform is None:
         raise RuntimeError("Model not initialized")
-    
-    # Extract 16 patches from the image
-    im = Image.open(BytesIO(image_bytes)).convert('RGB')
-    im = im.crop((0, 0, 896, 896))
-    pw = ph = 896 // 4
+
+    model.eval()
+    model.to(device)
+
+    # Load and resize image safely
+    image = Image.open(BytesIO(image_bytes)).convert("RGB")
+    if image.size != (PATCH_SIZE, PATCH_SIZE):
+        image = image.resize((PATCH_SIZE, PATCH_SIZE), Image.BILINEAR)
+
+    pw = ph = PATCH_SIZE // GRID
+
     patches = []
-    for r in range(4):
-        for c in range(4):
-            patches.append(im.crop((c*pw, r*ph, (c+1)*pw, (r+1)*ph)))
-    
-    # Compute embeddings for each patch
-    embeddings = []
-    for patch in patches:
-        tensor = transform(patch).unsqueeze(0)
-        with torch.no_grad():
-            emb = model(tensor).squeeze().cpu().numpy()
-            emb = emb.flatten()
-            emb = emb / (np.linalg.norm(emb) + 1e-12)
-            embeddings.append((emb, album_id))
-    
-    return embeddings
+    for r in range(GRID):
+        for c in range(GRID):
+            patch = image.crop((c * pw, r * ph, (c + 1) * pw, (r + 1) * ph))
+            patches.append(transform(patch))
 
+    batch = torch.stack(patches).to(device)
 
-def add_learned_embeddings(sample_id: str, image_bytes: bytes, album_id: str, db: Session, model, transform, amplification_factor=5):
+    with torch.no_grad():
+        embeddings = model(batch)
+
+    embeddings = embeddings.cpu().numpy()
+    embeddings = embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-12)
+
+    return embeddings.astype(np.float32)
+
+def add_learned_embeddings(
+    sample_id: str,
+    image_bytes: bytes,
+    album_id: str,
+    db: Session,
+    model,
+    transform,
+    learning_strength: float = 5.0,
+    device: str = "cpu",
+):
     """
-    Add new embeddings from corrected feedback to the training set.
-    This makes the model learn by having more examples of the correct label.
-    Amplification factor multiplies the impact of user corrections.
-    
-    Args:
-        sample_id: Original sample identifier
-        image_bytes: Raw image data
-        album_id: Correct label
-        db: SQLAlchemy database session
-        model: PyTorch model for embedding
-        transform: Image transform pipeline
-        amplification_factor: How many times to add the same patches (default 5)
-        
-    Returns:
-        List of created embedding IDs if successful, None if failed
+    Learn from corrected feedback efficiently using weighted embeddings.
+    No duplication. Scalable. Safe.
     """
+
     try:
-        new_embeddings = compute_patch_embeddings(image_bytes, album_id, model, transform)
-        
-        # Get or create album
+        # Prevent duplicate learning
+        existing = db.query(Embedding).filter(
+            Embedding.original_sample_id == sample_id,
+            Embedding.album_id == album_id,
+            Embedding.is_learned == True
+        ).first()
+
+        if existing:
+            print(f"Sample {sample_id} already learned for {album_id}")
+            return []
+
+        embeddings = compute_patch_embeddings(
+            image_bytes=image_bytes,
+            model=model,
+            transform=transform,
+            device=device,
+        )
+
         album = db.query(Album).filter(Album.album_id == album_id).first()
         if not album:
             raise ValueError(f"Album {album_id} not found")
-        
-        # Create embeddings from the learned patches
-        # Add them multiple times to amplify the learning effect
-        created_embedding_ids = []
-        for repeat in range(amplification_factor):
-            for idx, (emb, label) in enumerate(new_embeddings):
-                embedding_id = str(uuid.uuid4())
-                embedding_bytes = pickle.dumps(emb)
-                
-                embedding_obj = Embedding(
-                    embedding_id=embedding_id,
-                    album_id=album_id,
-                    original_sample_id=sample_id,
-                    embedding_vector=embedding_bytes,
-                    embedding_dim=len(emb),
-                    is_learned=True,
-                    amplification_iteration=repeat,
-                    patch_index=idx
-                )
-                db.add(embedding_obj)
-                created_embedding_ids.append(embedding_id)
-        
+
+        created_ids = []
+
+        for patch_index, emb in enumerate(embeddings):
+            embedding_id = str(uuid.uuid4())
+
+            embedding_obj = Embedding(
+                embedding_id=embedding_id,
+                album_id=album_id,
+                original_sample_id=sample_id,
+                embedding_vector=emb.tobytes(),  # fast + portable
+                embedding_dim=len(emb),
+                is_learned=True,
+                weight=learning_strength,  # amplified learning
+                patch_index=patch_index,
+                created_at=datetime.utcnow(),
+            )
+
+            db.add(embedding_obj)
+            created_ids.append(embedding_id)
+
         db.commit()
-        print(f"Model learned from {len(new_embeddings)} patches × {amplification_factor} amplification = {len(created_embedding_ids)} total embeddings for sample {sample_id} -> {album_id}")
-        return created_embedding_ids
+
+        print(
+            f"Learned {len(created_ids)} weighted embeddings "
+            f"(strength={learning_strength}) "
+            f"for sample {sample_id} -> {album_id}"
+        )
+
+        return created_ids
+
     except Exception as e:
-        print(f"Error learning from embeddings: {e}")
         db.rollback()
+        print(f"Learning error: {e}")
         return None
 
+def update_identifier_with_learning(
+    identifier,
+    sample_id: str,
+    image_bytes: bytes,
+    album_id: str,
+    db: Session,
+    model,
+    transform,
+    learning_strength: float = 5.0,
+    device: str = "cpu",
+):
+    """
+    Learn + incrementally update identifier.
+    Avoids full index rebuild.
+    """
 
-def rebuild_identifier_with_learning(sample_id: str, image_bytes: bytes, album_id: str, db: Session, model, transform):
+    created_ids = add_learned_embeddings(
+        sample_id=sample_id,
+        image_bytes=image_bytes,
+        album_id=album_id,
+        db=db,
+        model=model,
+        transform=transform,
+        learning_strength=learning_strength,
+        device=device,
+    )
+
+    if not created_ids:
+        return identifier
+
+    # Incremental update (must be implemented in TreeIdentifier)
+    identifier.add_embeddings_by_ids(created_ids)
+
+    return identifier
+
+def add_embeddings_by_ids(self, embedding_ids):
     """
-    Process feedback correction by learning and rebuilding the model.
-    
-    Args:
-        sample_id: Original sample identifier
-        image_bytes: Raw image data
-        album_id: Correct label
-        db: SQLAlchemy database session
-        model: PyTorch model for embedding
-        transform: Image transform pipeline
-        
-    Returns:
-        New TreeIdentifier if successful, None if failed
+    Load embeddings by ID and insert into ANN index
+    without full rebuild.
     """
-    # Add learned embeddings
-    created_embeddings = add_learned_embeddings(sample_id, image_bytes, album_id, db, model, transform)
-    
-    if created_embeddings:
-        # Rebuild identifier with new learned embeddings
-        try:
-            identifier = TreeIdentifier(model, transform, db)
-            return identifier
-        except Exception as e:
-            print(f"Error rebuilding identifier: {e}")
-            return None
-    
-    return None
+    new_embeddings = self._load_embeddings_by_ids(embedding_ids)
+    self.index.add(new_embeddings["vectors"])
+    self.metadata.extend(new_embeddings["metadata"])

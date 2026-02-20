@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from db import init_db, get_db, Album, Sample, Feedback, Embedding, SessionLocal
 from model.inference import TreeIdentifier
 from model.model_loader import load_resnet18, get_transform
-from model.learning import rebuild_identifier_with_learning
+from model.learning import update_identifier_with_learning
 from model.utils.loader import populate_albums_from_db
 
 # ===== Global State =====
@@ -222,8 +222,8 @@ async def submit_feedback(feedback: FeedbackRequestModel, db: Session = Depends(
     
     # Rebuild identifier if we learned something
     if should_rebuild and correct_label:
-        new_identifier = rebuild_identifier_with_learning(
-            sample_id, sample.image_bytes, correct_label, db, model, transform
+        new_identifier = update_identifier_with_learning(
+            identifier, sample_id, sample.image_bytes, correct_label, db, model, transform
         )
         
         if new_identifier:

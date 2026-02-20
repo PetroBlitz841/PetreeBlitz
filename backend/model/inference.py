@@ -1,116 +1,158 @@
 import torch
 import numpy as np
-import pickle
 from PIL import Image
 from io import BytesIO
-from collections import Counter
-from scipy.spatial.distance import cdist
+from collections import defaultdict
 from sqlalchemy.orm import Session
 
-class TreeIdentifier:
-    def __init__(self, model, transform, data_source):
-        """
-        Initialize TreeIdentifier with embeddings.
-        
-        Args:
-            model: PyTorch model for embedding
-            transform: Image transform pipeline
-            data_source: Either a dict of samples (legacy) or a SQLAlchemy Session
-        """
-        self.model = model
-        self.transform = transform
-        
-        # Pre-calculate matrix of known embeddings for speed
-        embeddings_list = []
-        labels_list = []
-        
-        if isinstance(data_source, Session):
-            # Load embeddings from database
-            from db import Embedding
-            embeddings = data_source.query(Embedding).all()
-            
-            for emb_obj in embeddings:
-                # Deserialize the embedding
-                emb = pickle.loads(emb_obj.embedding_vector)
-                # Ensure embedding is a numpy array
-                if not isinstance(emb, np.ndarray):
-                    emb = np.array(emb)
-                # Flatten to 1D if needed
-                emb = emb.flatten()
-                embeddings_list.append(emb)
-                labels_list.append(emb_obj.album_id)
-        else:
-            # Legacy: load from dictionary (for backwards compatibility)
-            for s in data_source.values():
-                # Skip samples that don't have embeddings
-                if "embedding" not in s:
-                    continue
-                
-                emb = s["embedding"]
-                # Ensure embedding is a numpy array
-                if not isinstance(emb, np.ndarray):
-                    emb = np.array(emb)
-                # Flatten to 1D if needed
-                emb = emb.flatten()
-                embeddings_list.append(emb)
-                labels_list.append(s["album_id"])
-        
-        # Create 2D array (num_samples x embedding_dim)
-        self.known_embeddings = np.array(embeddings_list) if embeddings_list else np.empty((0, 512))
-        self.known_labels = labels_list
-        
-        if self.known_embeddings.ndim != 2:
-            raise ValueError(f"Expected 2D embeddings array, got shape {self.known_embeddings.shape}")
+PATCH_SIZE = 896
+GRID = 4
 
+class TreeIdentifier:
+    def __init__(self, model, transform, db: Session, device="cpu"):
+        self.model = model.eval().to(device)
+        self.transform = transform
+        self.device = device
+
+        self.known_embeddings = None
+        self.known_labels = []
+        self.known_weights = None
+
+        self._load_embeddings(db)
+
+    # ---------------------------
+    # Load embeddings efficiently
+    # ---------------------------
+    def _load_embeddings(self, db):
+        from db import Embedding
+
+        embeddings = db.query(Embedding).all()
+
+        vectors = []
+        labels = []
+        weights = []
+
+        for emb_obj in embeddings:
+            vec = np.frombuffer(emb_obj.embedding_vector, dtype=np.float32)
+            vec = vec.flatten()
+
+            vectors.append(vec)
+            labels.append(emb_obj.album_id)
+            weights.append(getattr(emb_obj, "weight", 1.0))
+
+        if vectors:
+            self.known_embeddings = np.vstack(vectors)
+            self.known_weights = np.array(weights, dtype=np.float32)
+        else:
+            self.known_embeddings = np.empty((0, 512), dtype=np.float32)
+            self.known_weights = np.empty((0,), dtype=np.float32)
+
+        self.known_labels = labels
+
+    # ---------------------------
+    # Incremental update
+    # ---------------------------
+    def add_embeddings(self, vectors, labels, weights):
+        """
+        Add new embeddings without rebuilding everything.
+        """
+        if self.known_embeddings.size == 0:
+            self.known_embeddings = vectors
+            self.known_weights = weights
+        else:
+            self.known_embeddings = np.vstack([self.known_embeddings, vectors])
+            self.known_weights = np.concatenate([self.known_weights, weights])
+
+        self.known_labels.extend(labels)
+
+    # ---------------------------
+    # Patch extraction
+    # ---------------------------
     def _get_patches(self, image_bytes):
-        im = Image.open(BytesIO(image_bytes)).convert('RGB')
-        im = im.crop((0, 0, 896, 896))
-        pw = ph = 896 // 4
+        image = Image.open(BytesIO(image_bytes)).convert("RGB")
+
+        if image.size != (PATCH_SIZE, PATCH_SIZE):
+            image = image.resize((PATCH_SIZE, PATCH_SIZE), Image.BILINEAR)
+
+        pw = PATCH_SIZE // GRID
         patches = []
-        for r in range(4):
-            for c in range(4):
-                patches.append(im.crop((c*pw, r*ph, (c+1)*pw, (r+1)*ph)))
+
+        for r in range(GRID):
+            for c in range(GRID):
+                patches.append(
+                    image.crop((c * pw, r * pw, (c + 1) * pw, (r + 1) * pw))
+                )
+
         return patches
 
-    def identify(self, image_bytes):
-        patches = self._get_patches(image_bytes)
-        new_embeddings = []
-        
-        # Process patches (could be batched for speed)
-        for patch in patches:
-            tensor = self.transform(patch).unsqueeze(0)
-            with torch.no_grad():
-                emb = self.model(tensor).squeeze().cpu().numpy()
-                # Flatten to 1D
-                emb = emb.flatten()
-                # Normalize
-                emb = emb / (np.linalg.norm(emb) + 1e-12)
-                new_embeddings.append(emb)
+    # ---------------------------
+    # Batch embedding
+    # ---------------------------
+    def _embed_patches(self, patches):
+        batch = torch.stack([self.transform(p) for p in patches]).to(self.device)
 
-        # Convert to 2D array (num_patches x embedding_dim)
-        new_embeddings = np.array(new_embeddings)
-        if new_embeddings.ndim != 2:
-            raise ValueError(f"Expected 2D embeddings array, got shape {new_embeddings.shape}")
-        
-        # Handle case where no known embeddings
+        with torch.no_grad():
+            embeddings = self.model(batch)
+
+        embeddings = embeddings.cpu().numpy()
+        embeddings = embeddings / (
+            np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-12
+        )
+
+        return embeddings.astype(np.float32)
+
+    # ---------------------------
+    # Fast cosine similarity
+    # ---------------------------
+    def _cosine_similarity(self, A, B):
+        """
+        Fast cosine similarity using matrix multiplication.
+        Assumes vectors are normalized.
+        """
+        return np.dot(A, B.T)
+
+    # ---------------------------
+    # Identification
+    # ---------------------------
+    def identify(self, image_bytes, top_k=5):
         if len(self.known_labels) == 0:
             return [{"label": "unknown", "confidence": 0.0}]
-        
-        # Vector comparison
-        distances = cdist(new_embeddings, self.known_embeddings, metric='cosine')
-        closest_indices = np.argmin(distances, axis=1)
-        votes = [self.known_labels[idx] for idx in closest_indices]
-        
-        # Get vote counts for all species
-        vote_counts = Counter(votes)
-        total_votes = len(votes)
-        
-        # Create predictions list sorted by confidence (highest first)
-        predictions = []
-        for species, count in vote_counts.most_common():
-            predictions.append({
-                "label": species.replace("cluster_", ""),
-                "confidence": round(count / total_votes, 2)
-            })
-        
+
+        patches = self._get_patches(image_bytes)
+        new_embeddings = self._embed_patches(patches)
+
+        # Compute similarity matrix
+        similarity = self._cosine_similarity(new_embeddings, self.known_embeddings)
+
+        # Get top-k nearest for each patch
+        top_indices = np.argsort(-similarity, axis=1)[:, :top_k]
+
+        vote_scores = defaultdict(float)
+
+        for patch_idx in range(top_indices.shape[0]):
+            for idx in top_indices[patch_idx]:
+                label = self.known_labels[idx]
+                weight = self.known_weights[idx]
+                score = similarity[patch_idx, idx]
+
+                # Weighted voting
+                vote_scores[label] += score * weight
+
+        # Normalize scores
+        total_score = sum(vote_scores.values())
+        if total_score == 0:
+            return [{"label": "unknown", "confidence": 0.0}]
+
+        predictions = sorted(
+            [
+                {
+                    "label": label.replace("cluster_", ""),
+                    "confidence": round(score / total_score, 3),
+                }
+                for label, score in vote_scores.items()
+            ],
+            key=lambda x: x["confidence"],
+            reverse=True,
+        )
+
         return predictions
