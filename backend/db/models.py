@@ -1,6 +1,6 @@
 """Database models using SQLAlchemy ORM."""
 
-from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, Boolean, ForeignKey, JSON
+from sqlalchemy import Column, Float, String, Integer, DateTime, LargeBinary, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -69,6 +69,7 @@ class Embedding(Base):
     amplification_iteration = Column(Integer, default=0)  # For amplified learning
     patch_index = Column(Integer, nullable=True)  # Which patch this embedding is from (0-15)
     created_at = Column(DateTime, default=datetime.utcnow)
+    weight = Column(Float, default=1.0)
 
     # Relationship
     album = relationship("Album", back_populates="embeddings")

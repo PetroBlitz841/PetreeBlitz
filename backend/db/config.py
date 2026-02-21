@@ -22,9 +22,9 @@ Base = declarative_base()
 
 
 def init_db():
-    """Create all database tables."""
+    """Create all database tables (idempotent - safe to call multiple times)."""
     Base.metadata.create_all(bind=engine)
-    print("Database tables created successfully!")
+    print("Database tables initialized successfully!")
 
 
 def get_db():

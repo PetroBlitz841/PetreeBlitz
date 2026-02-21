@@ -4,6 +4,7 @@ from PIL import Image
 from io import BytesIO
 from collections import defaultdict
 from sqlalchemy.orm import Session
+import pickle
 
 PATCH_SIZE = 896
 GRID = 4
@@ -33,8 +34,17 @@ class TreeIdentifier:
         weights = []
 
         for emb_obj in embeddings:
-            vec = np.frombuffer(emb_obj.embedding_vector, dtype=np.float32)
-            vec = vec.flatten()
+            try:
+                # Embeddings are pickled when stored, so we need to unpickle them
+                vec = pickle.loads(emb_obj.embedding_vector)
+                if isinstance(vec, np.ndarray):
+                    vec = vec.flatten()
+                else:
+                    # If pickle.loads doesn't work, try treating as raw bytes
+                    vec = np.frombuffer(emb_obj.embedding_vector, dtype=np.float32).flatten()
+            except Exception as e:
+                print(f"Warning: Failed to load embedding: {e}, skipping")
+                continue
 
             vectors.append(vec)
             labels.append(emb_obj.album_id)
@@ -95,6 +105,10 @@ class TreeIdentifier:
             embeddings = self.model(batch)
 
         embeddings = embeddings.cpu().numpy()
+        # Flatten embeddings to 2D if needed (ResNet outputs (batch, 512, 1, 1))
+        if embeddings.ndim > 2:
+            embeddings = embeddings.reshape(embeddings.shape[0], -1)
+        
         embeddings = embeddings / (
             np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-12
         )

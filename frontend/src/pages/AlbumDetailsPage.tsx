@@ -167,16 +167,24 @@ export default function AlbumDetailsPage({
                     {image.predictions.length > 0 && (
                       <Stack spacing={1} sx={{ mb: 2 }}>
                         <Typography variant="body2" color="text.secondary">
-                          Top Prediction
+                          Top Prediction: {image.predictions[0].label}
                         </Typography>
                         <Typography variant="h6" fontWeight="bold">
-                          {image.predictions[0].label}
+                          {image.sample_id}
                         </Typography>
                         <Chip
-                          label={`${(image.predictions[0].confidence * 100).toFixed(1)}%`}
-                          color={getConfidenceColor(
-                            image.predictions[0].confidence,
-                          )}
+                          label={
+                            image.feedback?.correct_label
+                              ? "Corrected"
+                              : `${(image.predictions[0].confidence * 100).toFixed(1)}%`
+                          }
+                          color={
+                            image.feedback?.correct_label
+                              ? "default"
+                              : getConfidenceColor(
+                                  image.predictions[0].confidence,
+                                )
+                          }
                           size="small"
                         />
                       </Stack>
