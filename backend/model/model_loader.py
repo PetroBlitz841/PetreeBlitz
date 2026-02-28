@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 # Load ResNet18 model (pretrained) and remove final layer to get embeddings
 def load_resnet18():
-    model = models.resnet18(pretrained=True)
+    model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
     model.eval()
     model = torch.nn.Sequential(*list(model.children())[:-1])
     return model
