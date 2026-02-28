@@ -149,15 +149,6 @@ def update_identifier_with_learning(
         return identifier
 
     # Incremental update (must be implemented in TreeIdentifier)
-    identifier.add_embeddings_by_ids(created_ids)
+    identifier.add_embeddings_by_ids(created_ids, db)
 
     return identifier
-
-def add_embeddings_by_ids(self, embedding_ids):
-    """
-    Load embeddings by ID and insert into ANN index
-    without full rebuild.
-    """
-    new_embeddings = self._load_embeddings_by_ids(embedding_ids)
-    self.index.add(new_embeddings["vectors"])
-    self.metadata.extend(new_embeddings["metadata"])

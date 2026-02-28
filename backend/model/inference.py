@@ -4,7 +4,6 @@ from PIL import Image
 from io import BytesIO
 from collections import defaultdict
 from sqlalchemy.orm import Session
-import pickle
 
 PATCH_SIZE = 896
 GRID = 4
@@ -34,17 +33,23 @@ class TreeIdentifier:
         weights = []
 
         for emb_obj in embeddings:
+            # Try interpreting the stored bytes as float32 vector.
             try:
-                # Embeddings are pickled when stored, so we need to unpickle them
-                vec = pickle.loads(emb_obj.embedding_vector)
-                if isinstance(vec, np.ndarray):
-                    vec = vec.flatten()
-                else:
-                    # If pickle.loads doesn't work, try treating as raw bytes
-                    vec = np.frombuffer(emb_obj.embedding_vector, dtype=np.float32).flatten()
+                vec = np.frombuffer(emb_obj.embedding_vector, dtype=np.float32).flatten()
             except Exception as e:
-                print(f"Warning: Failed to load embedding: {e}, skipping")
-                continue
+                # fallback: there may be legacy pickled data in the DB
+                try:
+                    import pickle
+                    vec = pickle.loads(emb_obj.embedding_vector)
+                    if isinstance(vec, np.ndarray):
+                        vec = vec.flatten()
+                    else:
+                        raise ValueError("unpickled object is not ndarray")
+                    # convert to float32
+                    vec = np.asarray(vec, dtype=np.float32)
+                except Exception as e2:
+                    print(f"Warning: Failed to load embedding (buffer fallback also failed): {e2}, skipping")
+                    continue
 
             vectors.append(vec)
             labels.append(emb_obj.album_id)
@@ -74,6 +79,33 @@ class TreeIdentifier:
             self.known_weights = np.concatenate([self.known_weights, weights])
 
         self.known_labels.extend(labels)
+
+    def add_embeddings_by_ids(self, embedding_ids, db=None):
+        """
+        Load embeddings from DB by their IDs and add them to the identifier.
+        Requires a SQLAlchemy session (db) to fetch Embedding objects.
+        """
+        if db is None:
+            raise ValueError("Database session (db) must be provided")
+
+        from db import Embedding
+
+        embeddings = db.query(Embedding).filter(Embedding.embedding_id.in_(embedding_ids)).all()
+
+        vectors = []
+        labels = []
+        weights = []
+
+        for emb_obj in embeddings:
+            vec = np.frombuffer(emb_obj.embedding_vector, dtype=np.float32).flatten()
+            vectors.append(vec)
+            labels.append(emb_obj.album_id)
+            weights.append(getattr(emb_obj, "weight", 1.0))
+
+        if vectors:
+            vectors = np.vstack(vectors)
+            weights = np.array(weights, dtype=np.float32)
+            self.add_embeddings(vectors, labels, weights)
 
     # ---------------------------
     # Patch extraction
@@ -161,7 +193,7 @@ class TreeIdentifier:
             [
                 {
                     "label": label.replace("cluster_", ""),
-                    "confidence": round(score / total_score, 3),
+                    "confidence": float(round(score / total_score, 3)),
                 }
                 for label, score in vote_scores.items()
             ],

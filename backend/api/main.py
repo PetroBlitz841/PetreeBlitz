@@ -323,7 +323,7 @@ async def startup_event():
             populate_albums_from_db(csv_path, db)
             print("CSV data loaded into database")
         elif existing_albums > 0:
-            print(f"Database already populated with {existing_albums} albums, skipping CSV load")
+            print(f"Database loaded.")
         else:
             print(f"WARNING: {csv_path} not found and database is empty. Identification will be disabled.")
         

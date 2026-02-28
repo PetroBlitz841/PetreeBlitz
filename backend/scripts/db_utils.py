@@ -17,7 +17,6 @@ Commands:
 import os
 import sys
 import shutil
-import pickle
 from pathlib import Path
 from datetime import datetime
 

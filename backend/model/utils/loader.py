@@ -3,7 +3,6 @@
 import os
 import uuid
 import numpy as np
-import pickle
 from datetime import datetime
 from sqlalchemy.orm import Session
 from db import Album, Sample, Embedding
@@ -29,16 +28,18 @@ def add_sample_to_album_db(db: Session, album_id: str, album_name: str, sample_i
     db.add(sample)
     db.flush()
     
-    # Store embedding
+    # Store embedding as raw float32 bytes (no pickle).
     embedding_id = str(uuid.uuid4())
-    embedding_bytes = pickle.dumps(embedding)
+    # ensure float32 dtype for compact storage & consistency
+    arr = np.asarray(embedding, dtype=np.float32)
+    embedding_bytes = arr.tobytes()
     
     embedding_obj = Embedding(
         embedding_id=embedding_id,
         album_id=album_id,
         original_sample_id=sample_id,
         embedding_vector=embedding_bytes,
-        embedding_dim=len(embedding),
+        embedding_dim=len(arr),
         is_learned=False
     )
     db.add(embedding_obj)
@@ -97,7 +98,8 @@ def populate_albums_from_db(csv_path: str, db: Session):
                 embedding_str = embedding_str.replace('\n', ' ').strip()
                 # Remove brackets and split by whitespace
                 embedding_str = embedding_str.strip('[]')
-                embedding = np.array([float(x) for x in embedding_str.split() if x])
+                # build float32 array for consistency
+                embedding = np.asarray([float(x) for x in embedding_str.split() if x], dtype=np.float32)
                 if len(embedding) == 0:
                     print(f"Warning: Empty embedding for {sample_id}, skipping")
                     continue

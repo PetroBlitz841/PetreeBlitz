@@ -63,7 +63,7 @@ class Embedding(Base):
     embedding_id = Column(String, primary_key=True, index=True)
     album_id = Column(String, ForeignKey("albums.album_id"))
     original_sample_id = Column(String, nullable=True)  # Reference to original sample if learned from feedback
-    embedding_vector = Column(LargeBinary, nullable=False)  # Serialized numpy array
+    embedding_vector = Column(LargeBinary, nullable=False)  # Raw float32 bytes representing the vector (no pickle)
     embedding_dim = Column(Integer, nullable=False)  # Dimension of embedding
     is_learned = Column(Boolean, default=False)  # Whether this is from learned feedback
     amplification_iteration = Column(Integer, default=0)  # For amplified learning
