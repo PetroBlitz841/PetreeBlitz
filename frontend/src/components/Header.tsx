@@ -1,4 +1,4 @@
-import { AppBar, Toolbar, Typography, Box, Tabs, Tab } from "@mui/material";
+import { AppBar, Toolbar, Typography, Box, Tabs, Tab, Divider } from "@mui/material";
 import CollectionsIcon from "@mui/icons-material/Collections";
 import { Link, useLocation } from "react-router-dom";
 import { Biotech } from "@mui/icons-material";
@@ -17,6 +17,7 @@ export default function Header() {
       <Toolbar sx={{ flexDirection: "column", alignItems: "flex-start", py: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
           <img src="/pt-logo.svg" alt="PetreeBlitz" style={{ height: 80 }} />
+          <Divider orientation="vertical" flexItem sx={{ marginLeft: 2, marginRight: 0.5, borderColor: "black", borderWidth: 4 }} />
           <Typography variant="h4" color="textSecondary" sx={{ ml: 1 }}>
             Archaeobotany AI Tree Identification
           </Typography>
