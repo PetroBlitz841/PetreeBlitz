@@ -28,8 +28,8 @@ export default function PredictionCard({
     prediction.confidence > 0.8
       ? "success"
       : prediction.confidence > 0.5
-      ? "warning"
-      : "error";
+        ? "warning"
+        : "error";
 
   return (
     <Card>

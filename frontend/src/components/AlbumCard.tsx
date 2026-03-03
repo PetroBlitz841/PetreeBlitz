@@ -1,10 +1,4 @@
-import {
-  Card,
-  CardContent,
-  Box,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Card, CardContent, Box, Stack, Typography } from "@mui/material";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { Album } from "../types";
@@ -70,7 +64,8 @@ export default function AlbumCard({ album, onClick }: AlbumCardProps) {
           sx={{ pt: 1, borderTop: 1, borderColor: "grey.200" }}
         >
           <Typography variant="caption" color="text.secondary">
-            <strong>{album.num_images}</strong> image{album.num_images !== 1 ? "s" : ""}
+            <strong>{album.num_images}</strong> image
+            {album.num_images !== 1 ? "s" : ""}
           </Typography>
           <ArrowForwardIcon fontSize="small" sx={{ color: "primary.main" }} />
         </Stack>

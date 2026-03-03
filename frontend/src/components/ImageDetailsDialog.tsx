@@ -23,7 +23,11 @@ const getConfidenceColor = (confidence: number) => {
   return "error";
 };
 
-export default function ImageDetailsDialog({ open, image, onClose }: ImageDetailsDialogProps) {
+export default function ImageDetailsDialog({
+  open,
+  image,
+  onClose,
+}: ImageDetailsDialogProps) {
   if (!image) return null;
 
   return (
@@ -33,7 +37,11 @@ export default function ImageDetailsDialog({ open, image, onClose }: ImageDetail
         <Stack spacing={3}>
           <Box
             component="img"
-            src={image.image_url.startsWith("http") ? image.image_url : `http://localhost:8000${image.image_url}`}
+            src={
+              image.image_url.startsWith("http")
+                ? image.image_url
+                : `http://localhost:8000${image.image_url}`
+            }
             alt="Tree sample"
             sx={{ width: "100%", maxHeight: 400, objectFit: "contain" }}
           />
@@ -59,7 +67,12 @@ export default function ImageDetailsDialog({ open, image, onClose }: ImageDetail
                 </Typography>
                 <Chip
                   label={`${(pred.confidence * 100).toFixed(1)}%`}
-                  color={getConfidenceColor(pred.confidence) as "success" | "warning" | "error"}
+                  color={
+                    getConfidenceColor(pred.confidence) as
+                      | "success"
+                      | "warning"
+                      | "error"
+                  }
                 />
               </Box>
             ))}
@@ -89,7 +102,8 @@ export default function ImageDetailsDialog({ open, image, onClose }: ImageDetail
                 <strong>Sample ID:</strong> {image.sample_id}
               </Typography>
               <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                <strong>Timestamp:</strong> {new Date(image.timestamp).toLocaleString()}
+                <strong>Timestamp:</strong>{" "}
+                {new Date(image.timestamp).toLocaleString()}
               </Typography>
             </Box>
           </Stack>

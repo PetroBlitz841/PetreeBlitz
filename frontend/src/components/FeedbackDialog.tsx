@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Dialog,
+import {
+  Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
@@ -35,7 +36,6 @@ export default function FeedbackDialog({
     onSubmit(label.trim() || undefined);
     setLabel("");
   };
-
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>

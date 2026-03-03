@@ -1,4 +1,12 @@
-import { Card, CardMedia, CardContent, Stack, Typography, Chip, Box } from "@mui/material";
+import {
+  Card,
+  CardMedia,
+  CardContent,
+  Stack,
+  Typography,
+  Chip,
+  Box,
+} from "@mui/material";
 import { Info } from "@mui/icons-material";
 import { Image } from "../types";
 
@@ -32,7 +40,11 @@ export default function ImageCard({ image, onClick }: ImageCardProps) {
       <CardMedia
         component="img"
         height="250"
-        image={image.image_url.startsWith("http") ? image.image_url : `http://localhost:8000${image.image_url}`}
+        image={
+          image.image_url.startsWith("http")
+            ? image.image_url
+            : `http://localhost:8000${image.image_url}`
+        }
         alt="Tree sample"
         sx={{ objectFit: "cover" }}
       />
@@ -54,7 +66,10 @@ export default function ImageCard({ image, onClick }: ImageCardProps) {
               color={
                 image.feedback?.correct_label
                   ? "default"
-                  : getConfidenceColor(top.confidence) as "success" | "warning" | "error"
+                  : (getConfidenceColor(top.confidence) as
+                      | "success"
+                      | "warning"
+                      | "error")
               }
               size="small"
             />
@@ -72,7 +87,11 @@ export default function ImageCard({ image, onClick }: ImageCardProps) {
             </Stack>
           </Box>
         )}
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ mt: 1, display: "block" }}
+        >
           {new Date(image.timestamp).toLocaleString()}
         </Typography>
       </CardContent>

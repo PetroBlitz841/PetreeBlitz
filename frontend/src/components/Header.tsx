@@ -1,23 +1,48 @@
-import { AppBar, Toolbar, Typography, Box, Tabs, Tab, Divider } from "@mui/material";
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Box,
+  Tabs,
+  Tab,
+  Divider,
+} from "@mui/material";
 import CollectionsIcon from "@mui/icons-material/Collections";
 import { Link, useLocation } from "react-router-dom";
 import { Biotech } from "@mui/icons-material";
 
 const navItems = [
   { label: "Identify Trees", to: "/", icon: <Biotech fontSize="small" /> },
-  { label: "Albums", to: "/albums", icon: <CollectionsIcon fontSize="small" /> },
+  {
+    label: "Albums",
+    to: "/albums",
+    icon: <CollectionsIcon fontSize="small" />,
+  },
 ];
 
 export default function Header() {
   const location = useLocation();
-  const current = navItems.find(item => item.to === location.pathname)?.to || "/";
+  const current =
+    navItems.find((item) => item.to === location.pathname)?.to || "/";
 
   return (
     <AppBar position="static" color="default" elevation={1}>
-      <Toolbar sx={{ flexDirection: "column", alignItems: "flex-start", py: 2 }}>
+      <Toolbar
+        sx={{ flexDirection: "column", alignItems: "flex-start", py: 2 }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
           <img src="/pt-logo.svg" alt="PetreeBlitz" style={{ height: 80 }} />
-          <Divider orientation="vertical" flexItem sx={{ marginLeft: 2, marginRight: 0.5, borderColor: "black", borderWidth: 4, borderRadius: 2 }} />
+          <Divider
+            orientation="vertical"
+            flexItem
+            sx={{
+              marginLeft: 2,
+              marginRight: 0.5,
+              borderColor: "black",
+              borderWidth: 4,
+              borderRadius: 2,
+            }}
+          />
           <Typography variant="h4" color="textSecondary" sx={{ ml: 1 }}>
             Archaeobotany AI Tree Identification
           </Typography>
@@ -29,7 +54,7 @@ export default function Header() {
           indicatorColor="primary"
           sx={{ width: "100%" }}
         >
-          {navItems.map(item => (
+          {navItems.map((item) => (
             <Tab
               key={item.to}
               label={item.label}

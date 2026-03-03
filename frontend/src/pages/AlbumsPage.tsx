@@ -1,4 +1,11 @@
-import { Box, Typography, Stack, Alert, CircularProgress, Grid } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Stack,
+  Alert,
+  CircularProgress,
+  Grid,
+} from "@mui/material";
 import { Album } from "../types";
 import AlbumCard from "../components/AlbumCard";
 import { useNavigate } from "react-router-dom";
@@ -34,7 +41,17 @@ export default function AlbumsPage() {
   };
 
   return (
-    <Box sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "flex-start", width: "100%", px: 2, py: 4 }}>
+    <Box
+      sx={{
+        flex: 1,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "flex-start",
+        width: "100%",
+        px: 2,
+        py: 4,
+      }}
+    >
       <Box sx={{ width: "100%", maxWidth: 1200 }}>
         <Stack direction="column" spacing={1} sx={{ mb: 4 }}>
           <Typography variant="h4" color="primary" fontWeight="bold">
@@ -59,7 +76,8 @@ export default function AlbumsPage() {
 
         {!loading && !error && albums.length === 0 && (
           <Alert severity="info" sx={{ mb: 3 }}>
-            No albums yet. Albums are created automatically when you provide feedback on identified trees.
+            No albums yet. Albums are created automatically when you provide
+            feedback on identified trees.
           </Alert>
         )}
 

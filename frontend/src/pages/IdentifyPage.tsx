@@ -1,5 +1,14 @@
 import React from "react";
-import { Box, Stack, Typography, Button, CircularProgress, Alert, Card, CardMedia } from "@mui/material";
+import {
+  Box,
+  Stack,
+  Typography,
+  Button,
+  CircularProgress,
+  Alert,
+  Card,
+  CardMedia,
+} from "@mui/material";
 import UploadCard from "../components/UploadCard";
 import ResultsList from "../components/ResultsList";
 import FeedbackDialog from "../components/FeedbackDialog";
@@ -56,7 +65,10 @@ export default function IdentifyPage() {
 
   const handleDialogSubmit = (maybeLabel?: string) => {
     if (!sampleId || !pendingLabel) return;
-    const payload: FeedbackPayload = { sample_id: sampleId, was_correct: false };
+    const payload: FeedbackPayload = {
+      sample_id: sampleId,
+      was_correct: false,
+    };
     if (maybeLabel) payload.correct_label = maybeLabel;
     sendFeedback(payload);
     setDialogOpen(false);
@@ -64,7 +76,17 @@ export default function IdentifyPage() {
   };
 
   return (
-    <Box sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", width: "100%", px: 2, py: 4 }}>
+    <Box
+      sx={{
+        flex: 1,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100%",
+        px: 2,
+        py: 4,
+      }}
+    >
       <Box sx={{ width: "100%", maxWidth: 900 }}>
         <Stack direction="column" spacing={3}>
           <Stack direction="column" spacing={1}>
@@ -72,7 +94,9 @@ export default function IdentifyPage() {
               Identify Tree Species from Images
             </Typography>
             <Typography variant="h6" textAlign="center" color="text.secondary">
-              Upload a photo of a tree sample and our AI will identify the species with confidence scores. Help improve our model by providing feedback on predictions.
+              Upload a photo of a tree sample and our AI will identify the
+              species with confidence scores. Help improve our model by
+              providing feedback on predictions.
             </Typography>
           </Stack>
 
@@ -89,22 +113,25 @@ export default function IdentifyPage() {
             type="file"
             accept="image/*"
             style={{ display: "none" }}
-            onChange={(e) => { if (e.target.files && e.target.files.length > 0) handleFileSelect(e.target.files[0]); }}
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0)
+                handleFileSelect(e.target.files[0]);
+            }}
           />
 
           {imagePreview && (
             <Box display="flex" justifyContent="center">
-                <Card sx={{ width: "60%" }}>
+              <Card sx={{ width: "60%" }}>
                 <CardMedia
-                    component="img"
-                    height="300"
-                    image={imagePreview}
-                    alt="Uploaded tree sample"
-                    sx={{ objectFit: "contain" }}
+                  component="img"
+                  height="300"
+                  image={imagePreview}
+                  alt="Uploaded tree sample"
+                  sx={{ objectFit: "contain" }}
                 />
-                </Card>
+              </Card>
             </Box>
-            )}
+          )}
 
           {file && (
             <Box sx={{ textAlign: "center" }}>

@@ -1,5 +1,13 @@
 import React from "react";
-import { Box, Typography, Stack, Alert, CircularProgress, Grid, Button } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Stack,
+  Alert,
+  CircularProgress,
+  Grid,
+  Button,
+} from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import ImageCard from "../components/ImageCard";
@@ -40,10 +48,24 @@ export default function AlbumDetailsPage() {
   const handleClose = () => setSelectedImage(null);
 
   return (
-    <Box sx={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "flex-start", width: "100%", px: 2, py: 4 }}>
+    <Box
+      sx={{
+        flex: 1,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "flex-start",
+        width: "100%",
+        px: 2,
+        py: 4,
+      }}
+    >
       <Box sx={{ width: "100%", maxWidth: 1200 }}>
         <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 4 }}>
-          <Button startIcon={<ArrowBack />} onClick={handleBack} variant="outlined">
+          <Button
+            startIcon={<ArrowBack />}
+            onClick={handleBack}
+            variant="outlined"
+          >
             Back to Albums
           </Button>
           <Stack direction="column" spacing={0}>
@@ -84,7 +106,11 @@ export default function AlbumDetailsPage() {
           </Grid>
         )}
 
-        <ImageDetailsDialog open={Boolean(selectedImage)} image={selectedImage} onClose={handleClose} />
+        <ImageDetailsDialog
+          open={Boolean(selectedImage)}
+          image={selectedImage}
+          onClose={handleClose}
+        />
       </Box>
     </Box>
   );
