@@ -1,3 +1,23 @@
+import { RegionCode as RegionCode } from "./utils/regions";
+
+export interface Settings {
+  region: RegionCode | "";
+  planes: {
+    traverse: boolean;
+    radialLongitudinal: boolean;
+    tangentialLongitudinal: boolean;
+  };
+}
+
+export const DEFAULT_SETTINGS: Settings = {
+  region: "",
+  planes: {
+    traverse: true,
+    radialLongitudinal: false,
+    tangentialLongitudinal: false,
+  },
+};
+
 export interface Prediction {
   label: string;
   confidence: number;

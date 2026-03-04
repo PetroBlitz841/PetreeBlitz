@@ -13,4 +13,4 @@ node_modules
 backups/
 db_backups/
 
-data/
+backend/data/

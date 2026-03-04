@@ -8,12 +8,15 @@ import {
   Alert,
   Card,
   CardMedia,
+  IconButton,
 } from "@mui/material";
 import UploadCard from "../components/UploadCard";
 import ResultsList from "../components/ResultsList";
+import SettingsDialog from "../components/SettingsDialog";
 import FeedbackDialog from "../components/FeedbackDialog";
 import { useIdentify } from "../hooks/useIdentify";
-import { FeedbackPayload } from "../types";
+import { Settings, FeedbackPayload, DEFAULT_SETTINGS } from "../types";
+import { Settings as SettingsIcon } from "@mui/icons-material";
 
 export default function IdentifyPage() {
   const {
@@ -29,9 +32,19 @@ export default function IdentifyPage() {
     sendFeedback,
   } = useIdentify();
 
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [settings, setSettings] = React.useState<Settings>(DEFAULT_SETTINGS);
   const [dragOver, setDragOver] = React.useState(false);
-  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
   const [pendingLabel, setPendingLabel] = React.useState<string | null>(null);
+
+  const handleSettingsOpen = () => setSettingsOpen(true);
+  const handleSettingsClose = () => setSettingsOpen(false);
+
+  const handleSettingsSubmit = (newSettings: Settings) => {
+    setSettings(newSettings);
+    setSettingsOpen(false);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -55,15 +68,15 @@ export default function IdentifyPage() {
   };
   const handleWrong = (label: string) => {
     setPendingLabel(label);
-    setDialogOpen(true);
+    setFeedbackOpen(true);
   };
 
-  const handleDialogCancel = () => {
-    setDialogOpen(false);
+  const handleFeedbackCancel = () => {
+    setFeedbackOpen(false);
     setPendingLabel(null);
   };
 
-  const handleDialogSubmit = (maybeLabel?: string) => {
+  const handleFeedbackSubmit = (maybeLabel?: string) => {
     if (!sampleId || !pendingLabel) return;
     const payload: FeedbackPayload = {
       sample_id: sampleId,
@@ -71,7 +84,7 @@ export default function IdentifyPage() {
     };
     if (maybeLabel) payload.correct_label = maybeLabel;
     sendFeedback(payload);
-    setDialogOpen(false);
+    setFeedbackOpen(false);
     setPendingLabel(null);
   };
 
@@ -87,6 +100,11 @@ export default function IdentifyPage() {
         py: 4,
       }}
     >
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+        <IconButton onClick={handleSettingsOpen}>
+          <SettingsIcon />
+        </IconButton>
+      </Box>
       <Box sx={{ width: "100%", maxWidth: 900 }}>
         <Stack direction="column" spacing={3}>
           <Stack direction="column" spacing={1}>
@@ -157,12 +175,21 @@ export default function IdentifyPage() {
           />
         </Stack>
 
+        {/* Settings Dialog */}
+        <SettingsDialog
+          open={settingsOpen}
+          initialSettings={settings}
+          onCancel={handleSettingsClose}
+          onSubmit={handleSettingsSubmit}
+        />
+
+        {/* Feedback Dialog */}
         <FeedbackDialog
-          open={dialogOpen}
+          open={feedbackOpen}
           predictedLabel={pendingLabel || undefined}
           loading={loading}
-          onCancel={handleDialogCancel}
-          onSubmit={handleDialogSubmit}
+          onCancel={handleFeedbackCancel}
+          onSubmit={handleFeedbackSubmit}
         />
       </Box>
     </Box>

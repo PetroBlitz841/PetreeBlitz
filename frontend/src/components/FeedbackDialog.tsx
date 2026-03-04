@@ -53,7 +53,7 @@ export default function FeedbackDialog({
           label="Correct species label"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="e.g., Oak, Pine, Birch"
+          placeholder="e.g., Byrsonima coriaceaem, Luitzelburgia auriculata"
           disabled={loading}
         />
       </DialogContent>
