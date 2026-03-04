@@ -504,3 +504,15 @@ export function resolveAncestry(code: string) {
   const l2 = byCode[r.parent!];
   return { l1: l2 ? byCode[l2.parent!] : undefined, l2, l3: r };
 }
+
+export const L1_COLORS: Record<string, string> = {
+  "1": "#4a9e4f",
+  "2": "#d4893a",
+  "3": "#4a7abf",
+  "4": "#8b6bbf",
+  "5": "#c05838",
+  "6": "#2ab8b0",
+  "7": "#c03838",
+  "8": "#b8a020",
+  "9": "#7a9db0",
+};

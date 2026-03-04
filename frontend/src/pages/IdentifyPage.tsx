@@ -17,6 +17,7 @@ import FeedbackDialog from "../components/FeedbackDialog";
 import { useIdentify } from "../hooks/useIdentify";
 import { Settings, FeedbackPayload, DEFAULT_SETTINGS } from "../types";
 import { Settings as SettingsIcon } from "@mui/icons-material";
+import { usePersistedStorage } from "../hooks/useStorage";
 
 export default function IdentifyPage() {
   const {
@@ -33,7 +34,10 @@ export default function IdentifyPage() {
   } = useIdentify();
 
   const [settingsOpen, setSettingsOpen] = React.useState(false);
-  const [settings, setSettings] = React.useState<Settings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = usePersistedStorage<Settings>(
+    "identify_settings",
+    DEFAULT_SETTINGS,
+  );
   const [dragOver, setDragOver] = React.useState(false);
   const [feedbackOpen, setFeedbackOpen] = React.useState(false);
   const [pendingLabel, setPendingLabel] = React.useState<string | null>(null);

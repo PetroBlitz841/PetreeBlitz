@@ -29,20 +29,9 @@ import {
   byCode,
   resolveAncestry,
   RegionCode,
+  L1_COLORS,
 } from "../utils/regions";
 import TDWGMap from "./TDWGMap";
-
-const L1_COLORS: Record<string, string> = {
-  "1": "#4e8c3f",
-  "2": "#c4813a",
-  "3": "#4a7abf",
-  "4": "#7b5fbf",
-  "5": "#bf6040",
-  "6": "#2fa8a4",
-  "7": "#b03a3a",
-  "8": "#b8a020",
-  "9": "#7a9db0",
-};
 
 interface SettingsDialogProps {
   open: boolean;
