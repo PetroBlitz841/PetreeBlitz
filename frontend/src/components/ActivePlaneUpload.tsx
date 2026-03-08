@@ -1,4 +1,4 @@
-import React from "react";
+import { RefObject } from "react";
 import {
   Box,
   Stack,
@@ -15,7 +15,7 @@ import { Plane, Prediction } from "../types";
 interface ActivePlaneUploadProps {
   dragOver: Plane | null;
   setDragOver: (plane: Plane | null) => void;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  fileInputRef: RefObject<HTMLInputElement | null>;
   file: File | null;
   imagePreview: string | null;
   loading: boolean;
