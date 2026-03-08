@@ -1,21 +1,43 @@
 import { RegionCode as RegionCode } from "./utils/regions";
 
+export const PLANE_METADATA = {
+  traverse: {
+    label: "Transverse",
+    description: "Cross-section cut perpendicular to the grain",
+  },
+  radialLongitudinal: {
+    label: "Radial Longitudinal",
+    description: "Cut parallel to the rays, along the radius",
+  },
+  tangentialLongitudinal: {
+    label: "Tangential Longitudinal",
+    description: "Cut tangent to the growth rings",
+  },
+} as const;
+
+export type Plane = keyof typeof PLANE_METADATA;
+
+export const PLANES: {
+  [K in Plane]: (typeof PLANE_METADATA)[K] & { active: boolean };
+} = Object.fromEntries(
+  Object.entries(PLANE_METADATA).map(([key, value]) => [
+    key,
+    { ...value, active: key === "traverse" },
+  ]),
+) as { [K in Plane]: (typeof PLANE_METADATA)[K] & { active: boolean } };
+
 export interface Settings {
   region: RegionCode | "";
-  planes: {
-    traverse: boolean;
-    radialLongitudinal: boolean;
-    tangentialLongitudinal: boolean;
-  };
+  planes: Record<Plane, boolean>;
 }
+
+const defaultPlanes: Record<Plane, boolean> = Object.fromEntries(
+  Object.keys(PLANES).map((key) => [key, PLANES[key as Plane].active]),
+) as Record<Plane, boolean>;
 
 export const DEFAULT_SETTINGS: Settings = {
   region: "",
-  planes: {
-    traverse: true,
-    radialLongitudinal: false,
-    tangentialLongitudinal: false,
-  },
+  planes: defaultPlanes,
 };
 
 export interface Prediction {

@@ -1,21 +1,10 @@
 import React from "react";
-import {
-  Box,
-  Stack,
-  Typography,
-  Button,
-  CircularProgress,
-  Alert,
-  Card,
-  CardMedia,
-  IconButton,
-} from "@mui/material";
-import UploadCard from "../components/UploadCard";
-import ResultsList from "../components/ResultsList";
+import { Box, Stack, Typography, Alert, IconButton } from "@mui/material";
 import SettingsDialog from "../components/SettingsDialog";
 import FeedbackDialog from "../components/FeedbackDialog";
+import PlaneSection from "../components/PlaneSection";
 import { useIdentify } from "../hooks/useIdentify";
-import { Settings, FeedbackPayload, DEFAULT_SETTINGS } from "../types";
+import { Settings, FeedbackPayload, DEFAULT_SETTINGS, Plane } from "../types";
 import { Settings as SettingsIcon } from "@mui/icons-material";
 import { usePersistedStorage } from "../hooks/useStorage";
 
@@ -38,31 +27,23 @@ export default function IdentifyPage() {
     "identify_settings",
     DEFAULT_SETTINGS,
   );
-  const [dragOver, setDragOver] = React.useState(false);
+  const [dragOver, setDragOver] = React.useState<Plane | null>(null);
   const [feedbackOpen, setFeedbackOpen] = React.useState(false);
   const [pendingLabel, setPendingLabel] = React.useState<string | null>(null);
+  const [demoFiles, setDemoFiles] = React.useState<
+    Partial<Record<Plane, { file: File; preview: string }>>
+  >({});
 
   const handleSettingsOpen = () => setSettingsOpen(true);
   const handleSettingsClose = () => setSettingsOpen(false);
-
   const handleSettingsSubmit = (newSettings: Settings) => {
     setSettings(newSettings);
     setSettingsOpen(false);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) handleFileSelect(files[0]);
+  const handleDemoFileSelect = (plane: Plane, f: File) => {
+    const url = URL.createObjectURL(f);
+    setDemoFiles((prev) => ({ ...prev, [plane]: { file: f, preview: url } }));
   };
 
   const handleCorrect = () => {
@@ -70,6 +51,7 @@ export default function IdentifyPage() {
     const payload: FeedbackPayload = { sample_id: sampleId, was_correct: true };
     sendFeedback(payload);
   };
+
   const handleWrong = (label: string) => {
     setPendingLabel(label);
     setFeedbackOpen(true);
@@ -92,6 +74,11 @@ export default function IdentifyPage() {
     setPendingLabel(null);
   };
 
+  // Collect enabled planes from settings
+  const enabledPlanes = (
+    Object.entries(settings.planes) as [Plane, boolean][]
+  ).filter(([, enabled]) => enabled);
+
   return (
     <Box
       sx={{
@@ -104,13 +91,16 @@ export default function IdentifyPage() {
         py: 4,
       }}
     >
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+      {/* Settings button */}
+      <Box sx={{ position: "fixed", top: 16, right: 16, zIndex: 10 }}>
         <IconButton onClick={handleSettingsOpen}>
           <SettingsIcon />
         </IconButton>
       </Box>
+
       <Box sx={{ width: "100%", maxWidth: 900 }}>
         <Stack direction="column" spacing={3}>
+          {/* Header */}
           <Stack direction="column" spacing={1}>
             <Typography variant="h4" color="primary" textAlign="center">
               Identify Tree Species from Images
@@ -122,72 +112,44 @@ export default function IdentifyPage() {
             </Typography>
           </Stack>
 
-          <UploadCard
-            dragOver={dragOver}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            fileName={file?.name}
-          />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0)
-                handleFileSelect(e.target.files[0]);
-            }}
-          />
-
-          {imagePreview && (
-            <Box display="flex" justifyContent="center">
-              <Card sx={{ width: "60%" }}>
-                <CardMedia
-                  component="img"
-                  height="300"
-                  image={imagePreview}
-                  alt="Uploaded tree sample"
-                  sx={{ objectFit: "contain" }}
-                />
-              </Card>
-            </Box>
+          {/* Per-plane upload sections */}
+          {enabledPlanes.length === 0 ? (
+            <Alert severity="warning">
+              No planes selected. Open Settings to enable at least one cut
+              plane.
+            </Alert>
+          ) : (
+            enabledPlanes.map(([plane]) => (
+              <PlaneSection
+                key={plane}
+                plane={plane}
+                dragOver={dragOver}
+                setDragOver={setDragOver}
+                fileInputRef={fileInputRef}
+                file={file}
+                imagePreview={imagePreview}
+                loading={loading}
+                error={error}
+                results={results}
+                onFileSelect={handleFileSelect}
+                onIdentify={identify}
+                onCorrect={handleCorrect}
+                onWrong={handleWrong}
+                demoFile={demoFiles[plane]?.file ?? null}
+                demoPreview={demoFiles[plane]?.preview ?? null}
+                onDemoFileSelect={handleDemoFileSelect}
+              />
+            ))
           )}
-
-          {file && (
-            <Box sx={{ textAlign: "center" }}>
-              <Button
-                variant="contained"
-                size="large"
-                onClick={identify}
-                disabled={loading}
-                startIcon={loading ? <CircularProgress size={20} /> : null}
-              >
-                {loading ? "Identifying..." : "Identify Tree Species"}
-              </Button>
-            </Box>
-          )}
-
-          {error && <Alert severity="error">{error}</Alert>}
-
-          <ResultsList
-            results={results}
-            feedbackLoading={loading}
-            onCorrect={() => handleCorrect()}
-            onWrong={handleWrong}
-          />
         </Stack>
 
-        {/* Settings Dialog */}
+        {/* Dialogs */}
         <SettingsDialog
           open={settingsOpen}
           initialSettings={settings}
           onCancel={handleSettingsClose}
           onSubmit={handleSettingsSubmit}
         />
-
-        {/* Feedback Dialog */}
         <FeedbackDialog
           open={feedbackOpen}
           predictedLabel={pendingLabel || undefined}
