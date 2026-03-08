@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Stack, Typography, Alert, IconButton } from "@mui/material";
+import Grid from "@mui/material/Grid";
 import SettingsDialog from "../components/SettingsDialog";
 import FeedbackDialog from "../components/FeedbackDialog";
 import PlaneSection from "../components/PlaneSection";
@@ -98,7 +99,7 @@ export default function IdentifyPage() {
         </IconButton>
       </Box>
 
-      <Box sx={{ width: "100%", maxWidth: 900 }}>
+      <Box sx={{ width: "100%", maxWidth: 1600, mx: "auto" }}>
         <Stack direction="column" spacing={3}>
           {/* Header */}
           <Stack direction="column" spacing={1}>
@@ -119,27 +120,30 @@ export default function IdentifyPage() {
               plane.
             </Alert>
           ) : (
-            enabledPlanes.map(([plane]) => (
-              <PlaneSection
-                key={plane}
-                plane={plane}
-                dragOver={dragOver}
-                setDragOver={setDragOver}
-                fileInputRef={fileInputRef}
-                file={file}
-                imagePreview={imagePreview}
-                loading={loading}
-                error={error}
-                results={results}
-                onFileSelect={handleFileSelect}
-                onIdentify={identify}
-                onCorrect={handleCorrect}
-                onWrong={handleWrong}
-                demoFile={demoFiles[plane]?.file ?? null}
-                demoPreview={demoFiles[plane]?.preview ?? null}
-                onDemoFileSelect={handleDemoFileSelect}
-              />
-            ))
+            <Grid container spacing={3}>
+              {enabledPlanes.map(([plane]) => (
+                <Grid size={{ xs: 16, md: 4 }} key={plane}>
+                  <PlaneSection
+                    plane={plane}
+                    dragOver={dragOver}
+                    setDragOver={setDragOver}
+                    fileInputRef={fileInputRef}
+                    file={file}
+                    imagePreview={imagePreview}
+                    loading={loading}
+                    error={error}
+                    results={results}
+                    onFileSelect={handleFileSelect}
+                    onIdentify={identify}
+                    onCorrect={handleCorrect}
+                    onWrong={handleWrong}
+                    demoFile={demoFiles[plane]?.file ?? null}
+                    demoPreview={demoFiles[plane]?.preview ?? null}
+                    onDemoFileSelect={handleDemoFileSelect}
+                  />
+                </Grid>
+              ))}
+            </Grid>
           )}
         </Stack>
 
