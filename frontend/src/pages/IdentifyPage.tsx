@@ -120,7 +120,7 @@ export default function IdentifyPage() {
               plane.
             </Alert>
           ) : (
-            <Grid container spacing={3}>
+            <Grid container spacing={3} justifyContent="center">
               {enabledPlanes.map(([plane]) => (
                 <Grid size={{ xs: 16, md: 4 }} key={plane}>
                   <PlaneSection
