@@ -95,7 +95,7 @@ export default function TDWGDotMap({
 }: TDWGDotMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [geo, setGeo] = useState<GeoJSON.FeatureCollection | null>(geoCache);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!geoCache);
   const [error, setError] = useState("");
   const [hovered, setHovered] = useState("");
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -349,8 +349,8 @@ export default function TDWGDotMap({
             ))}
           </defs>
 
-          {/* Sphere outline */}
-          <path d={spherePath} fill="none" stroke="#aacde0" strokeWidth={0.8} />
+          {/* Sphere (ocean fill + outline) */}
+          <path d={spherePath} fill="#c8e0ee" stroke="#aacde0" strokeWidth={0.8} />
 
           {/* Graticule */}
           <path
@@ -362,8 +362,7 @@ export default function TDWGDotMap({
 
           {/* Features */}
           {features.map((f) => {
-            const isActive =
-              f.code === hovered || colorMap[f.code] === SELECTED_COLOR;
+            const isActive = f.code === hovered;
             const color = colorFor(f.code);
             const pid = isActive
               ? `${patternId(color)}-active`
