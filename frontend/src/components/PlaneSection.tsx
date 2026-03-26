@@ -1,12 +1,5 @@
 import { Box, Stack, Typography, Chip } from "@mui/material";
-import {
-  Plane,
-  PLANES,
-  Prediction,
-  IAWAFeatureResult,
-  FeatureSpeciesSupport,
-  FeatureCorrection,
-} from "../types";
+import { Plane, PLANES } from "../types";
 import ActivePlaneUpload from "./ActivePlaneUpload";
 import DemoPlaneUpload from "./DemoPlaneUpload";
 import PlaneDiagram from "./PlaneDiagram";
@@ -19,17 +12,7 @@ interface PlaneSectionProps {
   fileInputRef: RefObject<HTMLInputElement | null>;
   file: File | null;
   imagePreview: string | null;
-  loading: boolean;
-  error: string | null;
-  results: Prediction[];
-  features: IAWAFeatureResult[];
-  featureSupport: FeatureSpeciesSupport;
-  corrections: FeatureCorrection[];
   onFileSelect: (file: File) => void;
-  onIdentify: () => void;
-  onCorrect: (label: string) => void;
-  onNewSpecies: () => void;
-  onCorrectionsChange: (corrections: FeatureCorrection[]) => void;
   demoFile: File | null;
   demoPreview: string | null;
   onDemoFileSelect: (plane: Plane, file: File) => void;
@@ -42,17 +25,7 @@ export default function PlaneSection({
   fileInputRef,
   file,
   imagePreview,
-  loading,
-  error,
-  results,
-  features,
-  featureSupport,
-  corrections,
   onFileSelect,
-  onIdentify,
-  onCorrect,
-  onNewSpecies,
-  onCorrectionsChange,
   demoFile,
   demoPreview,
   onDemoFileSelect,
@@ -90,17 +63,7 @@ export default function PlaneSection({
           fileInputRef={fileInputRef}
           file={file}
           imagePreview={imagePreview}
-          loading={loading}
-          error={error}
-          results={results}
-          features={features}
-          featureSupport={featureSupport}
-          corrections={corrections}
           onFileSelect={onFileSelect}
-          onIdentify={onIdentify}
-          onCorrect={onCorrect}
-          onNewSpecies={onNewSpecies}
-          onCorrectionsChange={onCorrectionsChange}
         />
       ) : (
         <DemoPlaneUpload

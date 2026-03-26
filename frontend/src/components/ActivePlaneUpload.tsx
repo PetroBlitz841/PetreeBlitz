@@ -1,22 +1,7 @@
 import { RefObject } from "react";
-import {
-  Box,
-  Stack,
-  Button,
-  CircularProgress,
-  Alert,
-  Card,
-  CardMedia,
-} from "@mui/material";
+import { Box, Card, CardMedia } from "@mui/material";
 import UploadCard from "./UploadCard";
-import ResultsWithFeatures from "./ResultsWithFeatures";
-import {
-  Plane,
-  Prediction,
-  IAWAFeatureResult,
-  FeatureSpeciesSupport,
-  FeatureCorrection,
-} from "../types";
+import { Plane } from "../types";
 
 interface ActivePlaneUploadProps {
   dragOver: Plane | null;
@@ -24,17 +9,7 @@ interface ActivePlaneUploadProps {
   fileInputRef: RefObject<HTMLInputElement | null>;
   file: File | null;
   imagePreview: string | null;
-  loading: boolean;
-  error: string | null;
-  results: Prediction[];
-  features: IAWAFeatureResult[];
-  featureSupport: FeatureSpeciesSupport;
-  corrections: FeatureCorrection[];
   onFileSelect: (file: File) => void;
-  onIdentify: () => void;
-  onCorrect: (label: string) => void;
-  onNewSpecies: () => void;
-  onCorrectionsChange: (corrections: FeatureCorrection[]) => void;
 }
 
 export default function ActivePlaneUpload({
@@ -43,20 +18,10 @@ export default function ActivePlaneUpload({
   fileInputRef,
   file,
   imagePreview,
-  loading,
-  error,
-  results,
-  features,
-  featureSupport,
-  corrections,
   onFileSelect,
-  onIdentify,
-  onCorrect,
-  onNewSpecies,
-  onCorrectionsChange,
 }: ActivePlaneUploadProps) {
   return (
-    <Stack direction="column" spacing={2}>
+    <Box display="flex" flexDirection="column" gap={2}>
       <UploadCard
         dragOver={dragOver === "traverse"}
         onDragOver={(e) => {
@@ -100,33 +65,6 @@ export default function ActivePlaneUpload({
           </Card>
         </Box>
       )}
-
-      {file && (
-        <Box sx={{ textAlign: "center" }}>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={onIdentify}
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : null}
-          >
-            {loading ? "Identifying..." : "Identify Tree Species"}
-          </Button>
-        </Box>
-      )}
-
-      {error && <Alert severity="error">{error}</Alert>}
-
-      <ResultsWithFeatures
-        results={results}
-        features={features}
-        featureSupport={featureSupport}
-        corrections={corrections}
-        feedbackLoading={loading}
-        onCorrectionsChange={onCorrectionsChange}
-        onCorrect={onCorrect}
-        onNewSpecies={onNewSpecies}
-      />
-    </Stack>
+    </Box>
   );
 }

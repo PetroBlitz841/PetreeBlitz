@@ -1,9 +1,19 @@
 import React from "react";
-import { Box, Stack, Typography, Alert, IconButton } from "@mui/material";
+import {
+  Box,
+  Stack,
+  Typography,
+  Alert,
+  IconButton,
+  Button,
+  CircularProgress,
+  Divider,
+} from "@mui/material";
 import Grid from "@mui/material/Grid";
 import SettingsDialog from "../components/SettingsDialog";
 import FeedbackDialog from "../components/FeedbackDialog";
 import PlaneSection from "../components/PlaneSection";
+import ResultsWithFeatures from "../components/ResultsWithFeatures";
 import { useIdentify } from "../hooks/useIdentify";
 import {
   Settings,
@@ -150,17 +160,7 @@ export default function IdentifyPage() {
                     fileInputRef={fileInputRef}
                     file={file}
                     imagePreview={imagePreview}
-                    loading={loading}
-                    error={error}
-                    results={results}
-                    features={features}
-                    featureSupport={featureSupport}
-                    corrections={featureCorrections}
                     onFileSelect={handleFileSelect}
-                    onIdentify={identify}
-                    onCorrect={handleCorrect}
-                    onNewSpecies={handleNewSpecies}
-                    onCorrectionsChange={setFeatureCorrections}
                     demoFile={demoFiles[plane]?.file ?? null}
                     demoPreview={demoFiles[plane]?.preview ?? null}
                     onDemoFileSelect={handleDemoFileSelect}
@@ -169,6 +169,37 @@ export default function IdentifyPage() {
               ))}
             </Grid>
           )}
+
+          {/* Identification action + results */}
+          {file && (
+            <>
+              <Divider />
+              <Box textAlign="center">
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={identify}
+                  disabled={loading}
+                  startIcon={loading ? <CircularProgress size={20} /> : null}
+                >
+                  {loading ? "Identifying..." : "Identify Tree Species"}
+                </Button>
+              </Box>
+            </>
+          )}
+
+          {error && <Alert severity="error">{error}</Alert>}
+
+          <ResultsWithFeatures
+            results={results}
+            features={features}
+            featureSupport={featureSupport}
+            corrections={featureCorrections}
+            feedbackLoading={loading}
+            onCorrectionsChange={setFeatureCorrections}
+            onCorrect={handleCorrect}
+            onNewSpecies={handleNewSpecies}
+          />
         </Stack>
 
         {/* Dialogs */}
