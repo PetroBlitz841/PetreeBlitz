@@ -32,6 +32,7 @@ class Sample(Base):
     image_bytes = Column(LargeBinary, nullable=True)  # Raw image data
     image_path = Column(String, nullable=True)  # Path to original image file
     predictions = Column(JSON, nullable=True)  # List of predictions: [{"label": "...", "confidence": 0.9}]
+    iawa_features = Column(JSON, nullable=True)  # Cached IAWA feature profile generated at identification time
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -39,6 +40,7 @@ class Sample(Base):
     # Relationship
     album = relationship("Album", back_populates="samples")
     feedback = relationship("Feedback", back_populates="sample", uselist=False, cascade="all, delete-orphan")
+    feature_feedback = relationship("FeatureFeedback", back_populates="sample", cascade="all, delete-orphan")
 
 
 class Feedback(Base):
@@ -73,3 +75,18 @@ class Embedding(Base):
 
     # Relationship
     album = relationship("Album", back_populates="embeddings")
+
+
+class FeatureFeedback(Base):
+    """Per-feature expert corrections submitted alongside species feedback."""
+    __tablename__ = "feature_feedback"
+
+    id = Column(String, primary_key=True, index=True)
+    sample_id = Column(String, ForeignKey("samples.sample_id"), nullable=False)
+    feature_id = Column(Integer, nullable=False)        # IAWA feature id
+    is_present = Column(Boolean, nullable=False)        # expert's determination
+    importance_weight = Column(Float, default=1.0)      # 0.5 (low) … 2.0 (critical)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationship
+    sample = relationship("Sample", back_populates="feature_feedback")

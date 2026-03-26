@@ -5,7 +5,13 @@ import SettingsDialog from "../components/SettingsDialog";
 import FeedbackDialog from "../components/FeedbackDialog";
 import PlaneSection from "../components/PlaneSection";
 import { useIdentify } from "../hooks/useIdentify";
-import { Settings, FeedbackPayload, DEFAULT_SETTINGS, Plane } from "../types";
+import {
+  Settings,
+  FeedbackPayload,
+  DEFAULT_SETTINGS,
+  Plane,
+  FeatureCorrection,
+} from "../types";
 import { Settings as SettingsIcon } from "@mui/icons-material";
 import { usePersistedStorage } from "../hooks/useStorage";
 
@@ -14,6 +20,8 @@ export default function IdentifyPage() {
     file,
     imagePreview,
     results,
+    features,
+    featureSupport,
     loading,
     error,
     sampleId,
@@ -30,10 +38,17 @@ export default function IdentifyPage() {
   );
   const [dragOver, setDragOver] = React.useState<Plane | null>(null);
   const [feedbackOpen, setFeedbackOpen] = React.useState(false);
-  const [pendingLabel, setPendingLabel] = React.useState<string | null>(null);
+  const [featureCorrections, setFeatureCorrections] = React.useState<
+    FeatureCorrection[]
+  >([]);
   const [demoFiles, setDemoFiles] = React.useState<
     Partial<Record<Plane, { file: File; preview: string }>>
   >({});
+
+  // Reset corrections whenever a new identification runs (results change)
+  React.useEffect(() => {
+    setFeatureCorrections([]);
+  }, [results]);
 
   const handleSettingsOpen = () => setSettingsOpen(true);
   const handleSettingsClose = () => setSettingsOpen(false);
@@ -47,32 +62,37 @@ export default function IdentifyPage() {
     setDemoFiles((prev) => ({ ...prev, [plane]: { file: f, preview: url } }));
   };
 
-  const handleCorrect = () => {
+  const handleCorrect = (label: string) => {
     if (!sampleId) return;
-    const payload: FeedbackPayload = { sample_id: sampleId, was_correct: true };
+    const payload: FeedbackPayload = {
+      sample_id: sampleId,
+      was_correct: true,
+      correct_label: label,
+      feature_corrections:
+        featureCorrections.length > 0 ? featureCorrections : undefined,
+    };
     sendFeedback(payload);
   };
 
-  const handleWrong = (label: string) => {
-    setPendingLabel(label);
+  const handleNewSpecies = () => {
     setFeedbackOpen(true);
   };
 
   const handleFeedbackCancel = () => {
     setFeedbackOpen(false);
-    setPendingLabel(null);
   };
 
-  const handleFeedbackSubmit = (maybeLabel?: string) => {
-    if (!sampleId || !pendingLabel) return;
+  const handleFeedbackSubmit = (speciesName: string) => {
+    if (!sampleId) return;
     const payload: FeedbackPayload = {
       sample_id: sampleId,
       was_correct: false,
+      correct_label: speciesName,
+      feature_corrections:
+        featureCorrections.length > 0 ? featureCorrections : undefined,
     };
-    if (maybeLabel) payload.correct_label = maybeLabel;
     sendFeedback(payload);
     setFeedbackOpen(false);
-    setPendingLabel(null);
   };
 
   // Collect enabled planes from settings
@@ -133,10 +153,14 @@ export default function IdentifyPage() {
                     loading={loading}
                     error={error}
                     results={results}
+                    features={features}
+                    featureSupport={featureSupport}
+                    corrections={featureCorrections}
                     onFileSelect={handleFileSelect}
                     onIdentify={identify}
                     onCorrect={handleCorrect}
-                    onWrong={handleWrong}
+                    onNewSpecies={handleNewSpecies}
+                    onCorrectionsChange={setFeatureCorrections}
                     demoFile={demoFiles[plane]?.file ?? null}
                     demoPreview={demoFiles[plane]?.preview ?? null}
                     onDemoFileSelect={handleDemoFileSelect}
@@ -156,8 +180,8 @@ export default function IdentifyPage() {
         />
         <FeedbackDialog
           open={feedbackOpen}
-          predictedLabel={pendingLabel || undefined}
           loading={loading}
+          featureCorrections={featureCorrections}
           onCancel={handleFeedbackCancel}
           onSubmit={handleFeedbackSubmit}
         />

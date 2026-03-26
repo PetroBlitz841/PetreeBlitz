@@ -9,8 +9,14 @@ import {
   CardMedia,
 } from "@mui/material";
 import UploadCard from "./UploadCard";
-import ResultsList from "./ResultsList";
-import { Plane, Prediction } from "../types";
+import ResultsWithFeatures from "./ResultsWithFeatures";
+import {
+  Plane,
+  Prediction,
+  IAWAFeatureResult,
+  FeatureSpeciesSupport,
+  FeatureCorrection,
+} from "../types";
 
 interface ActivePlaneUploadProps {
   dragOver: Plane | null;
@@ -21,10 +27,14 @@ interface ActivePlaneUploadProps {
   loading: boolean;
   error: string | null;
   results: Prediction[];
+  features: IAWAFeatureResult[];
+  featureSupport: FeatureSpeciesSupport;
+  corrections: FeatureCorrection[];
   onFileSelect: (file: File) => void;
   onIdentify: () => void;
-  onCorrect: () => void;
-  onWrong: (label: string) => void;
+  onCorrect: (label: string) => void;
+  onNewSpecies: () => void;
+  onCorrectionsChange: (corrections: FeatureCorrection[]) => void;
 }
 
 export default function ActivePlaneUpload({
@@ -36,10 +46,14 @@ export default function ActivePlaneUpload({
   loading,
   error,
   results,
+  features,
+  featureSupport,
+  corrections,
   onFileSelect,
   onIdentify,
   onCorrect,
-  onWrong,
+  onNewSpecies,
+  onCorrectionsChange,
 }: ActivePlaneUploadProps) {
   return (
     <Stack direction="column" spacing={2}>
@@ -103,11 +117,15 @@ export default function ActivePlaneUpload({
 
       {error && <Alert severity="error">{error}</Alert>}
 
-      <ResultsList
+      <ResultsWithFeatures
         results={results}
+        features={features}
+        featureSupport={featureSupport}
+        corrections={corrections}
         feedbackLoading={loading}
+        onCorrectionsChange={onCorrectionsChange}
         onCorrect={onCorrect}
-        onWrong={onWrong}
+        onNewSpecies={onNewSpecies}
       />
     </Stack>
   );

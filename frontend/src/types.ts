@@ -45,10 +45,33 @@ export interface Prediction {
   confidence: number;
 }
 
+export interface IAWAFeatureResult {
+  id: number;
+  name: string;
+  category: string;
+  description: string;
+  is_present: boolean;
+  confidence: number;
+}
+
+export interface FeatureSpeciesSupport {
+  [species: string]: {
+    matched: number[];
+    mismatched: number[];
+  };
+}
+
+export interface FeatureCorrection {
+  feature_id: number;
+  is_present: boolean;
+  importance_weight: number; // 0.5 | 0.75 | 1.0 | 1.5 | 2.0
+}
+
 export interface FeedbackPayload {
   sample_id: string;
   was_correct: boolean;
   correct_label?: string;
+  feature_corrections?: FeatureCorrection[];
 }
 
 export interface Album {

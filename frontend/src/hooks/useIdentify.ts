@@ -1,11 +1,20 @@
 import { useState, useRef, useCallback } from "react";
 import api from "../services/api";
-import { Prediction, FeedbackPayload } from "../types";
+import {
+  Prediction,
+  FeedbackPayload,
+  IAWAFeatureResult,
+  FeatureSpeciesSupport,
+} from "../types";
 
 export function useIdentify() {
   const [file, setFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [results, setResults] = useState<Prediction[]>([]);
+  const [features, setFeatures] = useState<IAWAFeatureResult[]>([]);
+  const [featureSupport, setFeatureSupport] = useState<FeatureSpeciesSupport>(
+    {},
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sampleId, setSampleId] = useState<string | null>(null);
@@ -33,6 +42,8 @@ export function useIdentify() {
     setFile(selectedFile);
     setImagePreview(url);
     setResults([]);
+    setFeatures([]);
+    setFeatureSupport({});
     setError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -49,6 +60,8 @@ export function useIdentify() {
       });
       setSampleId(resp.data.sample_id);
       setResults(resp.data.predictions || []);
+      setFeatures(resp.data.features || []);
+      setFeatureSupport(resp.data.feature_species_support || {});
     } catch (err) {
       console.error(err);
       setError("Failed to identify tree species. Please try again.");
@@ -64,6 +77,8 @@ export function useIdentify() {
       await api.post("/feedback", payload);
       clearImage();
       setResults([]);
+      setFeatures([]);
+      setFeatureSupport({});
       setSampleId(null);
     } catch (err) {
       console.error(err);
@@ -77,6 +92,8 @@ export function useIdentify() {
     file,
     imagePreview,
     results,
+    features,
+    featureSupport,
     loading,
     error,
     sampleId,

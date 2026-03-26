@@ -1,19 +1,28 @@
-import { Stack, Grid, Typography } from "@mui/material";
-import { Prediction } from "../types";
+import { Stack, Grid, Typography, Button, Divider } from "@mui/material";
+import { AddCircleOutline } from "@mui/icons-material";
+import {
+  Prediction,
+  IAWAFeatureResult,
+  FeatureSpeciesSupport,
+} from "../types";
 import PredictionCard from "./PredictionCard";
 
 interface ResultsListProps {
   results: Prediction[];
   feedbackLoading?: boolean;
+  featureSupport?: FeatureSpeciesSupport;
+  allFeatures?: IAWAFeatureResult[];
   onCorrect: (label: string) => void;
-  onWrong: (label: string) => void;
+  onNewSpecies: () => void;
 }
 
 export default function ResultsList({
   results,
   feedbackLoading = false,
+  featureSupport,
+  allFeatures,
   onCorrect,
-  onWrong,
+  onNewSpecies,
 }: ResultsListProps) {
   if (results.length === 0) return null;
 
@@ -27,12 +36,30 @@ export default function ResultsList({
               index={index}
               prediction={prediction}
               feedbackLoading={feedbackLoading}
+              featureSupport={featureSupport}
+              allFeatures={allFeatures}
               onCorrect={onCorrect}
-              onWrong={onWrong}
             />
           </Grid>
         ))}
       </Grid>
+
+      <Divider />
+
+      {/* New species action */}
+      <Stack direction="row" alignItems="center" justifyContent="center">
+        <Button
+          variant="text"
+          color="primary"
+          size="small"
+          startIcon={<AddCircleOutline />}
+          onClick={onNewSpecies}
+          disabled={feedbackLoading}
+        >
+          None of these match — add as new species
+        </Button>
+      </Stack>
     </Stack>
   );
 }
+

@@ -8,20 +8,27 @@ import {
   TextField,
   Button,
   CircularProgress,
+  Box,
+  Chip,
+  Stack,
+  Divider,
+  Alert,
 } from "@mui/material";
+import { AddCircleOutline } from "@mui/icons-material";
+import { FeatureCorrection } from "../types";
 
 interface FeedbackDialogProps {
   open: boolean;
-  predictedLabel?: string;
   loading?: boolean;
+  featureCorrections?: FeatureCorrection[];
   onCancel: () => void;
-  onSubmit: (correctLabel?: string) => void;
+  onSubmit: (speciesName: string) => void;
 }
 
 export default function FeedbackDialog({
   open,
-  predictedLabel,
   loading = false,
+  featureCorrections = [],
   onCancel,
   onSubmit,
 }: FeedbackDialogProps) {
@@ -33,29 +40,61 @@ export default function FeedbackDialog({
   };
 
   const handleSubmit = () => {
-    onSubmit(label.trim() || undefined);
+    const name = label.trim();
+    if (!name) return;
+    onSubmit(name);
     setLabel("");
   };
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Correct Species Label</DialogTitle>
+      <DialogTitle>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <AddCircleOutline color="primary" />
+          <span>Add New Tree Species</span>
+        </Stack>
+      </DialogTitle>
       <DialogContent sx={{ pt: 2 }}>
         <Typography variant="body2" sx={{ mb: 2 }}>
-          The model predicted: <strong>{predictedLabel}</strong>
-        </Typography>
-        <Typography variant="body2" sx={{ mb: 2 }}>
-          What is the correct species name?
+          None of the predicted species match the uploaded sample? Enter the
+          correct species name to register it and teach the model.
         </Typography>
         <TextField
           autoFocus
           fullWidth
-          label="Correct species label"
+          label="Species name"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="e.g., Byrsonima coriaceaem, Luitzelburgia auriculata"
+          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+          placeholder="e.g., Byrsonima coriaceae"
           disabled={loading}
         />
+
+        {/* Feature correction summary */}
+        {featureCorrections.length > 0 && (
+          <Box mt={2.5}>
+            <Divider sx={{ mb: 1.5 }} />
+            <Typography variant="subtitle2" gutterBottom>
+              Feature corrections to include ({featureCorrections.length})
+            </Typography>
+            <Alert severity="info" sx={{ mb: 1, py: 0.5 }}>
+              Your feature corrections from the breakdown panel will be sent
+              together with this registration to guide model learning.
+            </Alert>
+            <Stack direction="row" flexWrap="wrap" gap={0.75}>
+              {featureCorrections.map((fc) => (
+                <Chip
+                  key={fc.feature_id}
+                  label={`Feature #${fc.feature_id} · ${fc.importance_weight}×`}
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  sx={{ fontSize: "0.68rem" }}
+                />
+              ))}
+            </Stack>
+          </Box>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose} disabled={loading}>
@@ -64,10 +103,12 @@ export default function FeedbackDialog({
         <Button
           onClick={handleSubmit}
           variant="contained"
-          disabled={loading}
-          startIcon={loading ? <CircularProgress size={20} /> : null}
+          disabled={loading || !label.trim()}
+          startIcon={
+            loading ? <CircularProgress size={20} /> : <AddCircleOutline />
+          }
         >
-          {loading ? "Submitting..." : "Submit Feedback"}
+          {loading ? "Registering..." : "Register Species"}
         </Button>
       </DialogActions>
     </Dialog>
