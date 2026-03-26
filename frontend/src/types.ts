@@ -74,10 +74,17 @@ export interface FeedbackPayload {
   feature_corrections?: FeatureCorrection[];
 }
 
+export interface TaxonomyEntry {
+  genus: string;
+  family: string;
+  order: string;
+}
+
 export interface Album {
   album_id: string;
   name: string;
   num_images: number;
+  taxonomy?: TaxonomyEntry;
 }
 
 export interface Image {

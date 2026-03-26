@@ -4,18 +4,25 @@ import {
   Stack,
   Alert,
   CircularProgress,
-  Grid,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
+import Grid from "@mui/material/Grid";
+import GridViewIcon from "@mui/icons-material/GridView";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import { Album } from "../types";
 import AlbumCard from "../components/AlbumCard";
+import TaxonomyTreeView from "../components/TaxonomyTreeView";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
 import api from "../services/api";
+import { getTaxonomy } from "../utils/taxonomy";
 
 export default function AlbumsPage() {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"taxonomy" | "grid">("taxonomy");
   const navigate = useNavigate();
 
   const fetchAlbums = useCallback(async () => {
@@ -40,6 +47,12 @@ export default function AlbumsPage() {
     navigate(`/albums/${album.album_id}`);
   };
 
+  /** Albums enriched with taxonomy so AlbumCard can show the family badge */
+  const enriched: Album[] = albums.map((a) => ({
+    ...a,
+    taxonomy: getTaxonomy(a.album_id),
+  }));
+
   return (
     <Box
       sx={{
@@ -53,13 +66,41 @@ export default function AlbumsPage() {
       }}
     >
       <Box sx={{ width: "100%", maxWidth: 1200 }}>
-        <Stack direction="column" spacing={1} sx={{ mb: 4 }}>
-          <Typography variant="h4" color="primary" fontWeight="bold">
-            Image Albums
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Browse your tree sample collections
-          </Typography>
+        {/* Header */}
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="flex-start"
+          sx={{ mb: 4 }}
+          flexWrap="wrap"
+          gap={2}
+        >
+          <Stack direction="column" spacing={0.5}>
+            <Typography variant="h4" color="primary" fontWeight="bold">
+              Image Albums
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Browse your tree sample collections
+            </Typography>
+          </Stack>
+
+          {albums.length > 0 && (
+            <ToggleButtonGroup
+              exclusive
+              value={viewMode}
+              onChange={(_, v) => v && setViewMode(v)}
+              size="small"
+            >
+              <ToggleButton value="taxonomy">
+                <AccountTreeIcon fontSize="small" sx={{ mr: 0.75 }} />
+                By Taxonomy
+              </ToggleButton>
+              <ToggleButton value="grid">
+                <GridViewIcon fontSize="small" sx={{ mr: 0.75 }} />
+                All Species
+              </ToggleButton>
+            </ToggleButtonGroup>
+          )}
         </Stack>
 
         {loading && (
@@ -81,14 +122,18 @@ export default function AlbumsPage() {
           </Alert>
         )}
 
-        {!loading && (
+        {!loading && viewMode === "grid" && (
           <Grid container spacing={3}>
-            {albums.map((album) => (
+            {enriched.map((album) => (
               <Grid size={{ xs: 12, sm: 6, md: 4 }} key={album.album_id}>
                 <AlbumCard album={album} onClick={() => handleSelect(album)} />
               </Grid>
             ))}
           </Grid>
+        )}
+
+        {!loading && viewMode === "taxonomy" && (
+          <TaxonomyTreeView albums={enriched} onSelect={handleSelect} />
         )}
       </Box>
     </Box>
