@@ -321,7 +321,7 @@ export default function TDWGDotMap({
               </pattern>
             ))}
 
-            {/* Enlarged-dot patterns for active (selected / hovered) features */}
+            {/* Enlarged-dot patterns for active (hovered) features */}
             {patternColors.map((color) => (
               <pattern
                 key={`${color}-active`}
@@ -339,13 +339,6 @@ export default function TDWGDotMap({
                   fill={color}
                 />
               </pattern>
-            ))}
-
-            {/* One clipPath per feature */}
-            {features.map((f) => (
-              <clipPath key={`cp-${f.code}`} id={`cp-${f.code}`}>
-                <path d={f.path} />
-              </clipPath>
             ))}
           </defs>
 
@@ -370,14 +363,10 @@ export default function TDWGDotMap({
 
             return (
               <g key={f.code}>
-                {/* Dot fill clipped to feature polygon */}
-                <rect
-                  x={0}
-                  y={0}
-                  width={width}
-                  height={height}
+                {/* Dot fill directly on the feature path — avoids clipPath failures */}
+                <path
+                  d={f.path}
                   fill={`url(#${pid})`}
-                  clipPath={`url(#cp-${f.code})`}
                   style={{ pointerEvents: "none" }}
                 />
                 {/* Transparent hit area */}
