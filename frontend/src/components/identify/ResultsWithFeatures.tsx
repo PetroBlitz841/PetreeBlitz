@@ -6,7 +6,7 @@ import {
   IAWAFeatureResult,
   FeatureSpeciesSupport,
   FeatureCorrection,
-} from "../types";
+} from "../../types";
 
 interface ResultsWithFeaturesProps {
   results: Prediction[];

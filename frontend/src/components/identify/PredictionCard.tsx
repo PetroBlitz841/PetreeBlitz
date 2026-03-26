@@ -19,7 +19,7 @@ import {
   ExpandMore,
   ExpandLess,
 } from "@mui/icons-material";
-import { Prediction, IAWAFeatureResult, FeatureSpeciesSupport } from "../types";
+import { Prediction, IAWAFeatureResult, FeatureSpeciesSupport } from "../../types";
 
 interface PredictionCardProps {
   prediction: Prediction;

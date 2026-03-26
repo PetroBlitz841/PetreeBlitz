@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Stack, Alert, Card, CardMedia } from "@mui/material";
 import UploadCard from "./UploadCard";
-import { Plane, PLANES } from "../types";
+import { Plane, PLANES } from "../../types";
 
 interface DemoPlaneUploadProps {
   plane: Plane;

@@ -1,7 +1,7 @@
 import { RefObject } from "react";
 import { Box, Card, CardMedia } from "@mui/material";
 import UploadCard from "./UploadCard";
-import { Plane } from "../types";
+import { Plane } from "../../types";
 
 interface ActivePlaneUploadProps {
   dragOver: Plane | null;

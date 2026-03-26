@@ -15,7 +15,7 @@ import {
   Alert,
 } from "@mui/material";
 import { AddCircleOutline } from "@mui/icons-material";
-import { FeatureCorrection } from "../types";
+import { FeatureCorrection } from "../../types";
 
 interface FeedbackDialogProps {
   open: boolean;

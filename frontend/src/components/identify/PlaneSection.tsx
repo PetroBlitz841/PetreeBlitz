@@ -1,5 +1,5 @@
 import { Box, Stack, Typography, Chip } from "@mui/material";
-import { Plane, PLANES } from "../types";
+import { Plane, PLANES } from "../../types";
 import ActivePlaneUpload from "./ActivePlaneUpload";
 import DemoPlaneUpload from "./DemoPlaneUpload";
 import PlaneDiagram from "./PlaneDiagram";

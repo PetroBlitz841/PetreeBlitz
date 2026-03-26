@@ -10,10 +10,10 @@ import {
   Divider,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
-import SettingsDialog from "../components/SettingsDialog";
-import FeedbackDialog from "../components/FeedbackDialog";
-import PlaneSection from "../components/PlaneSection";
-import ResultsWithFeatures from "../components/ResultsWithFeatures";
+import SettingsDialog from "../components/identify/SettingsDialog";
+import FeedbackDialog from "../components/identify/FeedbackDialog";
+import PlaneSection from "../components/identify/PlaneSection";
+import ResultsWithFeatures from "../components/identify/ResultsWithFeatures";
 import { useIdentify } from "../hooks/useIdentify";
 import {
   Settings,

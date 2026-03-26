@@ -9,7 +9,7 @@ import {
   Stack,
   Chip,
 } from "@mui/material";
-import { Image } from "../types";
+import { Image } from "../../types";
 
 interface ImageDetailsDialogProps {
   open: boolean;

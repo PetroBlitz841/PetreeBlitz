@@ -21,7 +21,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import PublicIcon from "@mui/icons-material/Public";
-import { Settings } from "../types";
+import { Settings } from "../../types";
 import {
   L1,
   l2ByParent,
@@ -30,7 +30,7 @@ import {
   resolveAncestry,
   RegionCode,
   L1_COLORS,
-} from "../utils/regions";
+} from "../../utils/regions";
 import TDWGMap from "./TDWGMap";
 
 interface SettingsDialogProps {

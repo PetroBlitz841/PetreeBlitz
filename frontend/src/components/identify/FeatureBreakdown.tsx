@@ -19,7 +19,7 @@ import {
   Cancel,
   InfoOutlined,
 } from "@mui/icons-material";
-import { IAWAFeatureResult, FeatureCorrection } from "../types";
+import { IAWAFeatureResult, FeatureCorrection } from "../../types";
 
 // ── category colours ──────────────────────────────────────────────────────────
 const CATEGORY_COLOR: Record<string, string> = {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import * as d3 from "d3-geo";
-import { RegionCode, L1_COLORS as L1_COLOR } from "../utils/regions";
+import { RegionCode, L1_COLORS as L1_COLOR } from "../../utils/regions";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

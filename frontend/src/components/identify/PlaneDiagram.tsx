@@ -1,4 +1,4 @@
-import { Plane } from "../types";
+import { Plane } from "../../types";
 
 interface PlaneDiagramProps {
   plane: Plane;

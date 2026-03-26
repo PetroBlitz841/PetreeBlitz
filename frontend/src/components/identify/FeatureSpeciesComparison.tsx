@@ -18,7 +18,7 @@ import {
   ExpandLess,
   AddCircleOutline,
 } from "@mui/icons-material";
-import { IAWAFeatureResult, FeatureSpeciesSupport, Prediction } from "../types";
+import { IAWAFeatureResult, FeatureSpeciesSupport, Prediction } from "../../types";
 
 interface FeatureSpeciesComparisonProps {
   predictions: Prediction[];

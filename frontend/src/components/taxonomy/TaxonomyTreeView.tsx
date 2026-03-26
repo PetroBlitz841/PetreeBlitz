@@ -6,42 +6,17 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  IconButton,
-  Tooltip,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import LocalFloristIcon from "@mui/icons-material/LocalFlorist";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import { Album } from "../types";
-import { buildTaxonomyTree } from "../utils/taxonomy";
-import AlbumCard from "./AlbumCard";
-
-/** Small Wikipedia link button — stops accordion toggle on click */
-function WikiLink({ name, rank }: { name: string; rank: string }) {
-  const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(name)}`;
-  return (
-    <Tooltip title={`${rank} on Wikipedia`} placement="top">
-      <IconButton
-        size="small"
-        component="a"
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        sx={{
-          p: 0.4,
-          color: "text.secondary",
-          "&:hover": { color: "primary.main" },
-        }}
-      >
-        <OpenInNewIcon sx={{ fontSize: "0.95rem" }} />
-      </IconButton>
-    </Tooltip>
-  );
-}
+import { Album } from "../../types";
+import { buildTaxonomyTree } from "../../utils/taxonomy";
+import AlbumCard from "../albums/AlbumCard";
+import WikiLink from "../common/WikiLink";
+import TaxonomyRankChip from "./TaxonomyRankChip";
 
 interface TaxonomyTreeViewProps {
   albums: Album[];
@@ -61,34 +36,6 @@ function countAlbums(
     }
   }
   return total;
-}
-
-/** Small rank badge chip */
-function RankChip({
-  label,
-  bgcolor,
-  color,
-}: {
-  label: string;
-  bgcolor: string;
-  color: string;
-}) {
-  return (
-    <Chip
-      label={label}
-      size="small"
-      variant="filled"
-      sx={{
-        fontSize: "0.58rem",
-        height: 18,
-        fontWeight: 700,
-        letterSpacing: 0.6,
-        bgcolor,
-        color,
-        textTransform: "uppercase",
-      }}
-    />
-  );
 }
 
 export default function TaxonomyTreeView({
@@ -140,8 +87,8 @@ export default function TaxonomyTreeView({
                 <Typography variant="subtitle1" fontWeight={700} flex={1}>
                   {order}
                 </Typography>
-                <RankChip label="Order" bgcolor="#bbdefb" color="#0d47a1" />
-                <WikiLink name={order} rank="Order" />
+                <TaxonomyRankChip rank="Order" />
+                <WikiLink name={order} stopPropagation />
                 <Chip
                   label={`${familyMap.size} ${familyMap.size === 1 ? "family" : "families"}`}
                   size="small"
@@ -192,12 +139,8 @@ export default function TaxonomyTreeView({
                           <Typography variant="body1" fontWeight={600} flex={1}>
                             {family}
                           </Typography>
-                          <RankChip
-                            label="Family"
-                            bgcolor="#fff9c4"
-                            color="#f57f17"
-                          />
-                          <WikiLink name={family} rank="Family" />
+                          <TaxonomyRankChip rank="Family" />
+                          <WikiLink name={family} stopPropagation />
                           <Chip
                             label={`${genusMap.size} ${genusMap.size === 1 ? "genus" : "genera"}`}
                             size="small"
@@ -257,12 +200,8 @@ export default function TaxonomyTreeView({
                                       >
                                         {genus}
                                       </Typography>
-                                      <RankChip
-                                        label="Genus"
-                                        bgcolor="#ffe0b2"
-                                        color="#bf360c"
-                                      />
-                                      <WikiLink name={genus} rank="Genus" />
+                                      <TaxonomyRankChip rank="Genus" />
+                                      <WikiLink name={genus} stopPropagation />
                                       <Chip
                                         label={`${speciesList.length} ${speciesList.length === 1 ? "species" : "species"}`}
                                         size="small"

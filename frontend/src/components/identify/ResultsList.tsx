@@ -4,7 +4,7 @@ import {
   Prediction,
   IAWAFeatureResult,
   FeatureSpeciesSupport,
-} from "../types";
+} from "../../types";
 import PredictionCard from "./PredictionCard";
 
 interface ResultsListProps {

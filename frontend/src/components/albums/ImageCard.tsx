@@ -8,7 +8,7 @@ import {
   Box,
 } from "@mui/material";
 import { Info } from "@mui/icons-material";
-import { Image } from "../types";
+import { Image } from "../../types";
 
 interface ImageCardProps {
   image: Image;
