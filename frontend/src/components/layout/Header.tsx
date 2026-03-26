@@ -23,7 +23,11 @@ const navItems = [
 export default function Header() {
   const location = useLocation();
   const current =
-    navItems.find((item) => item.to === location.pathname)?.to || "/";
+    navItems.find((item) =>
+      item.to === "/"
+        ? location.pathname === "/"
+        : location.pathname.startsWith(item.to),
+    )?.to || "/";
 
   return (
     <AppBar position="static" color="default" elevation={1}>
