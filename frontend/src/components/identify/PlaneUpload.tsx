@@ -1,30 +1,33 @@
 import React from "react";
-import { Box, Stack, Alert, Card, CardMedia } from "@mui/material";
+import { Box, Alert, Card, CardMedia } from "@mui/material";
 import UploadCard from "./UploadCard";
 import { Plane, PLANES } from "../../types";
 
-interface DemoPlaneUploadProps {
+interface PlaneUploadProps {
   plane: Plane;
   dragOver: Plane | null;
   setDragOver: (plane: Plane | null) => void;
+  fileInputRef?: React.RefObject<HTMLInputElement | null>;
   file: File | null;
   preview: string | null;
-  onFileSelect: (plane: Plane, file: File) => void;
+  onFileSelect: (file: File) => void;
 }
 
-export default function DemoPlaneUpload({
+export default function PlaneUpload({
   plane,
   dragOver,
   setDragOver,
+  fileInputRef,
   file,
   preview,
   onFileSelect,
-}: DemoPlaneUploadProps) {
-  const inputRef = React.useRef<HTMLInputElement>(null);
+}: PlaneUploadProps) {
+  const localRef = React.useRef<HTMLInputElement>(null);
+  const inputRef = fileInputRef ?? localRef;
   const metadata = PLANES[plane];
 
   return (
-    <Stack direction="column" spacing={2}>
+    <Box display="flex" flexDirection="column" gap={2}>
       <UploadCard
         dragOver={dragOver === plane}
         onDragOver={(e) => {
@@ -39,7 +42,7 @@ export default function DemoPlaneUpload({
           e.preventDefault();
           setDragOver(null);
           const files = e.dataTransfer.files;
-          if (files.length > 0) onFileSelect(plane, files[0]);
+          if (files.length > 0) onFileSelect(files[0]);
         }}
         onClick={() => inputRef.current?.click()}
         fileName={file?.name}
@@ -47,11 +50,11 @@ export default function DemoPlaneUpload({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,.tif,.tiff"
         style={{ display: "none" }}
         onChange={(e) => {
           if (e.target.files && e.target.files.length > 0)
-            onFileSelect(plane, e.target.files[0]);
+            onFileSelect(e.target.files[0]);
         }}
       />
 
@@ -69,12 +72,12 @@ export default function DemoPlaneUpload({
         </Box>
       )}
 
-      {file && (
+      {!metadata.active && file && (
         <Alert severity="info">
           <strong>{metadata.label}</strong> identification is not available in
           this demo. Only the Transverse plane is functional.
         </Alert>
       )}
-    </Stack>
+    </Box>
   );
 }

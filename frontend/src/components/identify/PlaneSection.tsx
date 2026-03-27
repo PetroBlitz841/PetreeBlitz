@@ -1,7 +1,6 @@
 import { Box, Stack, Typography, Chip } from "@mui/material";
 import { Plane, PLANES } from "../../types";
-import ActivePlaneUpload from "./ActivePlaneUpload";
-import DemoPlaneUpload from "./DemoPlaneUpload";
+import PlaneUpload from "./PlaneUpload";
 import PlaneDiagram from "./PlaneDiagram";
 import { RefObject } from "react";
 
@@ -9,13 +8,10 @@ interface PlaneSectionProps {
   plane: Plane;
   dragOver: Plane | null;
   setDragOver: (plane: Plane | null) => void;
-  fileInputRef: RefObject<HTMLInputElement | null>;
+  fileInputRef?: RefObject<HTMLInputElement | null>;
   file: File | null;
-  imagePreview: string | null;
+  preview: string | null;
   onFileSelect: (file: File) => void;
-  demoFile: File | null;
-  demoPreview: string | null;
-  onDemoFileSelect: (plane: Plane, file: File) => void;
 }
 
 export default function PlaneSection({
@@ -24,11 +20,8 @@ export default function PlaneSection({
   setDragOver,
   fileInputRef,
   file,
-  imagePreview,
+  preview,
   onFileSelect,
-  demoFile,
-  demoPreview,
-  onDemoFileSelect,
 }: PlaneSectionProps) {
   const metadata = PLANES[plane];
 
@@ -56,25 +49,15 @@ export default function PlaneSection({
         </Stack>
       </Stack>
 
-      {metadata.active ? (
-        <ActivePlaneUpload
-          dragOver={dragOver}
-          setDragOver={setDragOver}
-          fileInputRef={fileInputRef}
-          file={file}
-          imagePreview={imagePreview}
-          onFileSelect={onFileSelect}
-        />
-      ) : (
-        <DemoPlaneUpload
-          plane={plane}
-          dragOver={dragOver}
-          setDragOver={setDragOver}
-          file={demoFile}
-          preview={demoPreview}
-          onFileSelect={onDemoFileSelect}
-        />
-      )}
+      <PlaneUpload
+        plane={plane}
+        dragOver={dragOver}
+        setDragOver={setDragOver}
+        fileInputRef={fileInputRef}
+        file={file}
+        preview={preview}
+        onFileSelect={onFileSelect}
+      />
     </Box>
   );
 }

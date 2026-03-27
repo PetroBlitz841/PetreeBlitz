@@ -67,7 +67,7 @@ export default function IdentifyPage() {
     setSettingsOpen(false);
   };
 
-  const handleDemoFileSelect = (plane: Plane, f: File) => {
+  const handleDemoFileSelect = (f: File, plane: Plane) => {
     const url = URL.createObjectURL(f);
     setDemoFiles((prev) => ({ ...prev, [plane]: { file: f, preview: url } }));
   };
@@ -151,22 +151,33 @@ export default function IdentifyPage() {
             </Alert>
           ) : (
             <Grid container spacing={3} justifyContent="center">
-              {enabledPlanes.map(([plane]) => (
-                <Grid size={{ xs: 16, md: 4 }} key={plane}>
-                  <PlaneSection
-                    plane={plane}
-                    dragOver={dragOver}
-                    setDragOver={setDragOver}
-                    fileInputRef={fileInputRef}
-                    file={file}
-                    imagePreview={imagePreview}
-                    onFileSelect={handleFileSelect}
-                    demoFile={demoFiles[plane]?.file ?? null}
-                    demoPreview={demoFiles[plane]?.preview ?? null}
-                    onDemoFileSelect={handleDemoFileSelect}
-                  />
-                </Grid>
-              ))}
+              {enabledPlanes.map(([plane]) => {
+                const isActive = plane === "traverse";
+                const planeFile = isActive
+                  ? file
+                  : (demoFiles[plane]?.file ?? null);
+                const planePreview = isActive
+                  ? imagePreview
+                  : (demoFiles[plane]?.preview ?? null);
+
+                return (
+                  <Grid size={{ xs: 16, md: 4 }} key={plane}>
+                    <PlaneSection
+                      plane={plane}
+                      dragOver={dragOver}
+                      setDragOver={setDragOver}
+                      fileInputRef={isActive ? fileInputRef : undefined}
+                      file={planeFile}
+                      preview={planePreview}
+                      onFileSelect={
+                        isActive
+                          ? handleFileSelect
+                          : (f: File) => handleDemoFileSelect(f, plane)
+                      }
+                    />
+                  </Grid>
+                );
+              })}
             </Grid>
           )}
 
