@@ -62,6 +62,67 @@ function patternId(color: string): string {
   return `dot-${color.replace(/[^a-zA-Z0-9]/g, "")}`;
 }
 
+/**
+ * Signed area via the shoelace formula (positive = CCW in lon/lat space).
+ * GeoJSON rings are closed, so the last point equals the first — skip it.
+ */
+function signedRingArea(ring: number[][]): number {
+  let a = 0;
+  const n = ring.length - 1;
+  for (let i = 0; i < n; i++) {
+    const [x0, y0] = ring[i];
+    const [x1, y1] = ring[i + 1];
+    a += x0 * y1 - x1 * y0;
+  }
+  return a;
+}
+
+/**
+ * Normalise all polygon exterior rings to CW (D3-geo convention).
+ * D3-geo renders CW exterior rings as the small-area interior (the actual
+ * country / island). A CCW exterior ring is interpreted as enclosing
+ * everything *except* the feature — filling the whole sphere — which
+ * causes the "entire map turns yellow on hover" bug for any affected region.
+ */
+function normalizeForD3(
+  fc: GeoJSON.FeatureCollection,
+): GeoJSON.FeatureCollection {
+  const fixRings = (rings: number[][][]): number[][][] =>
+    rings.map((ring, i) => {
+      // D3: exterior ring (i === 0) must be CW (area < 0); holes must be CCW (area > 0)
+      const shouldBeCW = i === 0;
+      const isCW = signedRingArea(ring) < 0;
+      return isCW === shouldBeCW ? ring : [...ring].reverse();
+    });
+
+  return {
+    ...fc,
+    features: fc.features.map((feat) => {
+      const g = feat.geometry;
+      if (!g) return feat;
+      if (g.type === "Polygon") {
+        return {
+          ...feat,
+          geometry: {
+            ...g,
+            coordinates: fixRings((g as GeoJSON.Polygon).coordinates),
+          },
+        };
+      }
+      if (g.type === "MultiPolygon") {
+        return {
+          ...feat,
+          geometry: {
+            ...g,
+            coordinates: (g as GeoJSON.MultiPolygon).coordinates.map(fixRings),
+          },
+        };
+      }
+      return feat;
+    }),
+  };
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface FeatureMeta {
@@ -95,7 +156,7 @@ export default function TDWGDotMap({
 }: TDWGDotMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [geo, setGeo] = useState<GeoJSON.FeatureCollection | null>(geoCache);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!geoCache);
   const [error, setError] = useState("");
   const [hovered, setHovered] = useState("");
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -127,8 +188,9 @@ export default function TDWGDotMap({
       })
       .then((d) => {
         if (cancelled) return;
-        geoCache = d;
-        setGeo(d);
+        const normalized = normalizeForD3(d);
+        geoCache = normalized;
+        setGeo(normalized);
       })
       .catch((e: Error) => {
         if (!cancelled) setError(e.message);
@@ -321,7 +383,7 @@ export default function TDWGDotMap({
               </pattern>
             ))}
 
-            {/* Enlarged-dot patterns for active (selected / hovered) features */}
+            {/* Enlarged-dot patterns for active (hovered) features */}
             {patternColors.map((color) => (
               <pattern
                 key={`${color}-active`}
@@ -340,17 +402,15 @@ export default function TDWGDotMap({
                 />
               </pattern>
             ))}
-
-            {/* One clipPath per feature */}
-            {features.map((f) => (
-              <clipPath key={`cp-${f.code}`} id={`cp-${f.code}`}>
-                <path d={f.path} />
-              </clipPath>
-            ))}
           </defs>
 
-          {/* Sphere outline */}
-          <path d={spherePath} fill="none" stroke="#aacde0" strokeWidth={0.8} />
+          {/* Sphere (ocean fill + outline) */}
+          <path
+            d={spherePath}
+            fill="#c8e0ee"
+            stroke="#aacde0"
+            strokeWidth={0.8}
+          />
 
           {/* Graticule */}
           <path
@@ -362,8 +422,7 @@ export default function TDWGDotMap({
 
           {/* Features */}
           {features.map((f) => {
-            const isActive =
-              f.code === hovered || colorMap[f.code] === SELECTED_COLOR;
+            const isActive = f.code === hovered;
             const color = colorFor(f.code);
             const pid = isActive
               ? `${patternId(color)}-active`
@@ -371,14 +430,10 @@ export default function TDWGDotMap({
 
             return (
               <g key={f.code}>
-                {/* Dot fill clipped to feature polygon */}
-                <rect
-                  x={0}
-                  y={0}
-                  width={width}
-                  height={height}
+                {/* Dot fill directly on the feature path — avoids clipPath failures */}
+                <path
+                  d={f.path}
                   fill={`url(#${pid})`}
-                  clipPath={`url(#cp-${f.code})`}
                   style={{ pointerEvents: "none" }}
                 />
                 {/* Transparent hit area */}
