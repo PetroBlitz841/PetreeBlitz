@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Database URL - uses SQLite by default, can be changed to PostgreSQL for production
+# Database URL
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./petree_blitz.db")
 
 # Create SQLAlchemy engine
