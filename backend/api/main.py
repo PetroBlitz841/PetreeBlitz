@@ -9,6 +9,8 @@ import uuid
 from datetime import datetime
 import numpy as np
 from sqlalchemy.orm import Session
+from PIL import Image as PILImage
+import io
 
 from db import init_db, get_db, Album, Sample, Feedback, Embedding, FeatureFeedback, SessionLocal
 from model.inference import TreeIdentifier
@@ -140,10 +142,25 @@ async def identify_image(file: UploadFile = File(...), db: Session = Depends(get
         if not ext:
             ext = '.jpg'
 
+        # Convert TIFF images to PNG so browsers can render them
+        if ext.lower() in ('.tiff', '.tif'):
+            img = PILImage.open(io.BytesIO(image_bytes))
+            # Preserve transparency if present, otherwise convert to RGB
+            if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+                img = img.convert('RGBA')
+            else:
+                img = img.convert('RGB')
+            buf = io.BytesIO()
+            img.save(buf, format='PNG')
+            save_bytes = buf.getvalue()
+            ext = '.png'
+        else:
+            save_bytes = image_bytes
+
         filename = f"{sample_id}{ext}"
         file_fs_path = os.path.join(patches_dir, filename)
         with open(file_fs_path, 'wb') as f:
-            f.write(image_bytes)
+            f.write(save_bytes)
 
         # Store a web-accessible image path in the DB (consistent with CSV loader '/trees/...')
         image_path_db = f"/patches/{filename}"

@@ -24,6 +24,7 @@ import {
 } from "../types";
 import { Settings as SettingsIcon } from "@mui/icons-material";
 import { usePersistedStorage } from "../hooks/useStorage";
+import { isTiff, tiffFileToDataUrl } from "../utils/tiffUtils";
 
 export default function IdentifyPage() {
   const {
@@ -67,9 +68,19 @@ export default function IdentifyPage() {
     setSettingsOpen(false);
   };
 
-  const handleDemoFileSelect = (plane: Plane, f: File) => {
-    const url = URL.createObjectURL(f);
-    setDemoFiles((prev) => ({ ...prev, [plane]: { file: f, preview: url } }));
+  const handleDemoFileSelect = async (plane: Plane, f: File) => {
+    let preview: string;
+    if (isTiff(f)) {
+      try {
+        preview = await tiffFileToDataUrl(f);
+      } catch (err) {
+        console.error("Failed to render TIFF preview:", err);
+        preview = "";
+      }
+    } else {
+      preview = URL.createObjectURL(f);
+    }
+    setDemoFiles((prev) => ({ ...prev, [plane]: { file: f, preview } }));
   };
 
   const handleCorrect = (label: string) => {

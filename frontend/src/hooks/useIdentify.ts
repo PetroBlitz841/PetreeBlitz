@@ -6,6 +6,7 @@ import {
   IAWAFeatureResult,
   FeatureSpeciesSupport,
 } from "../types";
+import { isTiff, tiffFileToDataUrl } from "../utils/tiffUtils";
 
 export function useIdentify() {
   const [file, setFile] = useState<File | null>(null);
@@ -35,17 +36,30 @@ export function useIdentify() {
     setFile(null);
   }, [revokePreview]);
 
-  const handleFileSelect = (selectedFile: File) => {
+  const handleFileSelect = async (selectedFile: File) => {
     revokePreview();
-    const url = URL.createObjectURL(selectedFile);
-    previewUrlRef.current = url;
     setFile(selectedFile);
-    setImagePreview(url);
     setResults([]);
     setFeatures([]);
     setFeatureSupport({});
     setError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+
+    if (isTiff(selectedFile)) {
+      try {
+        const dataUrl = await tiffFileToDataUrl(selectedFile);
+        // Data URLs are plain strings and don't need to be revoked via
+        // URL.revokeObjectURL(), so previewUrlRef is intentionally left null.
+        previewUrlRef.current = null;
+        setImagePreview(dataUrl);
+      } catch {
+        setError("Failed to render TIFF image preview.");
+      }
+    } else {
+      const url = URL.createObjectURL(selectedFile);
+      previewUrlRef.current = url;
+      setImagePreview(url);
+    }
   };
 
   const identify = async () => {
