@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Stack,
   Typography,
@@ -42,7 +42,7 @@ export default function TaxonomyTreeView({
   albums,
   onSelect,
 }: TaxonomyTreeViewProps) {
-  const tree = buildTaxonomyTree(albums);
+  const tree = useMemo(() => buildTaxonomyTree(albums), [albums]);
 
   // Track expanded state independently per level using "<order>", "<order>/<family>", "<order>/<family>/<genus>" keys
   const [expanded, setExpanded] = useState<Set<string>>(new Set());

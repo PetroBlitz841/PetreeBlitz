@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Card, CardContent, Box, Stack, Typography, Chip } from "@mui/material";
 import ParkIcon from "@mui/icons-material/Park";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
@@ -10,7 +11,7 @@ interface AlbumCardProps {
   onClick?: () => void;
 }
 
-export default function AlbumCard({ album, onClick }: AlbumCardProps) {
+const AlbumCard = memo(function AlbumCard({ album, onClick }: AlbumCardProps) {
   const [gradStart, gradEnd] = getGradient(album.album_id);
   const family = album.taxonomy?.family;
   const [genus, epithet] = splitSpeciesName(album.name);
@@ -151,4 +152,6 @@ export default function AlbumCard({ album, onClick }: AlbumCardProps) {
       </CardContent>
     </Card>
   );
-}
+});
+
+export default AlbumCard;

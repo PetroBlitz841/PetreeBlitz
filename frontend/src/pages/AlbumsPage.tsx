@@ -14,26 +14,31 @@ import { Album } from "../types";
 import AlbumCard from "../components/albums/AlbumCard";
 import TaxonomyTreeView from "../components/taxonomy/TaxonomyTreeView";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import api from "../services/api";
 import { getTaxonomy } from "../utils/taxonomy";
 
+/** Module-level cache so revisiting the page shows data instantly */
+let albumsCache: Album[] | null = null;
+
 export default function AlbumsPage() {
-  const [albums, setAlbums] = useState<Album[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [albums, setAlbums] = useState<Album[]>(albumsCache ?? []);
+  const [loading, setLoading] = useState(albumsCache === null);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"taxonomy" | "grid">("taxonomy");
   const navigate = useNavigate();
 
   const fetchAlbums = useCallback(async () => {
-    setLoading(true);
+    if (albumsCache === null) setLoading(true);
     setError(null);
     try {
       const resp = await api.get<Album[]>("/albums");
+      albumsCache = resp.data;
       setAlbums(resp.data);
     } catch (err) {
       console.error(err);
-      setError("Failed to load albums. Please try again.");
+      if (albumsCache === null)
+        setError("Failed to load albums. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -48,10 +53,10 @@ export default function AlbumsPage() {
   };
 
   /** Albums enriched with taxonomy so AlbumCard can show the family badge */
-  const enriched: Album[] = albums.map((a) => ({
-    ...a,
-    taxonomy: getTaxonomy(a.album_id),
-  }));
+  const enriched = useMemo<Album[]>(
+    () => albums.map((a) => ({ ...a, taxonomy: getTaxonomy(a.album_id) })),
+    [albums],
+  );
 
   return (
     <Box
