@@ -44,7 +44,7 @@ export default function ActivePlaneUpload({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,.tif,.tiff"
         style={{ display: "none" }}
         onChange={(e) => {
           if (e.target.files && e.target.files.length > 0)

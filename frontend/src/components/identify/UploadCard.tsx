@@ -37,7 +37,8 @@ export default function UploadCard({
           {fileName || "Drag & drop an image here or click to select"}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Supported formats: JPG, PNG, GIF
+          Supported formats: JPG, PNG, GIF, and{" "}
+          <strong>SEM microscope TIFF</strong>
         </Typography>
       </CardContent>
     </Card>

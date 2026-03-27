@@ -6,9 +6,11 @@ import {
   Typography,
   Chip,
   Box,
+  Skeleton,
 } from "@mui/material";
 import { Info } from "@mui/icons-material";
 import { Image } from "../../types";
+import { useTiffAwareSrc } from "../../hooks/useTiffAwareSrc";
 
 interface ImageCardProps {
   image: Image;
@@ -23,6 +25,9 @@ const getConfidenceColor = (confidence: number) => {
 
 export default function ImageCard({ image, onClick }: ImageCardProps) {
   const top = image.predictions[0];
+  const rawSrc = image.image_url;
+  const resolvedSrc = useTiffAwareSrc(rawSrc);
+
   return (
     <Card
       sx={{
@@ -37,17 +42,17 @@ export default function ImageCard({ image, onClick }: ImageCardProps) {
       }}
       onClick={onClick}
     >
-      <CardMedia
-        component="img"
-        height="250"
-        image={
-          image.image_url.startsWith("http")
-            ? image.image_url
-            : `http://localhost:8000${image.image_url}`
-        }
-        alt="Tree sample"
-        sx={{ objectFit: "cover" }}
-      />
+      {resolvedSrc ? (
+        <CardMedia
+          component="img"
+          height="250"
+          image={resolvedSrc}
+          alt="Tree sample"
+          sx={{ objectFit: "cover" }}
+        />
+      ) : (
+        <Skeleton variant="rectangular" height={250} />
+      )}
       <CardContent sx={{ flex: 1 }}>
         {top && (
           <Stack spacing={1} sx={{ mb: 2 }}>

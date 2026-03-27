@@ -8,8 +8,10 @@ import {
   Typography,
   Stack,
   Chip,
+  Skeleton,
 } from "@mui/material";
 import { Image } from "../../types";
+import { useTiffAwareSrc } from "../../hooks/useTiffAwareSrc";
 
 interface ImageDetailsDialogProps {
   open: boolean;
@@ -23,6 +25,21 @@ const getConfidenceColor = (confidence: number) => {
   return "error";
 };
 
+function DialogImage({ image }: { image: Image }) {
+  const rawSrc = image.image_url;
+  const resolvedSrc = useTiffAwareSrc(rawSrc);
+
+  if (!resolvedSrc) return <Skeleton variant="rectangular" height={400} />;
+  return (
+    <Box
+      component="img"
+      src={resolvedSrc}
+      alt="Tree sample"
+      sx={{ width: "100%", maxHeight: 400, objectFit: "contain" }}
+    />
+  );
+}
+
 export default function ImageDetailsDialog({
   open,
   image,
@@ -35,16 +52,7 @@ export default function ImageDetailsDialog({
       <DialogTitle>Image Details</DialogTitle>
       <DialogContent sx={{ pt: 2 }}>
         <Stack spacing={3}>
-          <Box
-            component="img"
-            src={
-              image.image_url.startsWith("http")
-                ? image.image_url
-                : `http://localhost:8000${image.image_url}`
-            }
-            alt="Tree sample"
-            sx={{ width: "100%", maxHeight: 400, objectFit: "contain" }}
-          />
+          <DialogImage image={image} />
 
           <Stack spacing={1}>
             <Typography variant="subtitle1" fontWeight="bold">

@@ -6,6 +6,7 @@ import {
   IAWAFeatureResult,
   FeatureSpeciesSupport,
 } from "../types";
+import { isTiffFile, convertTiffFileToPng } from "../utils/tiff";
 
 export function useIdentify() {
   const [file, setFile] = useState<File | null>(null);
@@ -35,18 +36,34 @@ export function useIdentify() {
     setFile(null);
   }, [revokePreview]);
 
-  const handleFileSelect = (selectedFile: File) => {
-    revokePreview();
-    const url = URL.createObjectURL(selectedFile);
-    previewUrlRef.current = url;
-    setFile(selectedFile);
-    setImagePreview(url);
-    setResults([]);
-    setFeatures([]);
-    setFeatureSupport({});
-    setError(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
+  const handleFileSelect = useCallback(
+    async (selectedFile: File) => {
+      revokePreview();
+      setFile(selectedFile);
+      setResults([]);
+      setFeatures([]);
+      setFeatureSupport({});
+      setError(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+
+      if (isTiffFile(selectedFile)) {
+        try {
+          const dataUrl = await convertTiffFileToPng(selectedFile);
+          setImagePreview(dataUrl);
+        } catch {
+          // Fallback: browser won't render it, but at least we have the file
+          const url = URL.createObjectURL(selectedFile);
+          previewUrlRef.current = url;
+          setImagePreview(url);
+        }
+      } else {
+        const url = URL.createObjectURL(selectedFile);
+        previewUrlRef.current = url;
+        setImagePreview(url);
+      }
+    },
+    [revokePreview],
+  );
 
   const identify = async () => {
     if (!file) return;
