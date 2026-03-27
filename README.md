@@ -2,7 +2,7 @@
   <a href="https://github.com/PetroBlitz841/PetreeBlitz">
     <img src="frontend/public/pt-logo.svg" alt="PetreeBlitz Logo" width="300" height="100">
   </a>
-  <p>A charcoal identification system used for Archaeobotany research.</p>
+  <p>A charcoal identification system for Archaeobotany research.</p>
 </div>
 
 # PetreeBlitz
