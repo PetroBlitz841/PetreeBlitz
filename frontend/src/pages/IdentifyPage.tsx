@@ -92,6 +92,7 @@ export default function IdentifyPage() {
         featureCorrections.length > 0 ? featureCorrections : undefined,
     };
     sendFeedback(payload);
+    setDemoFiles({});
   };
 
   const handleNewSpecies = () => {
@@ -112,6 +113,7 @@ export default function IdentifyPage() {
         featureCorrections.length > 0 ? featureCorrections : undefined,
     };
     sendFeedback(payload);
+    setDemoFiles({});
     setFeedbackOpen(false);
   };
 
