@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import axios from "axios";
 import api from "../services/api";
 import {
   Prediction,
@@ -87,7 +88,9 @@ export function useIdentify() {
     }
   };
 
-  const sendFeedback = async (payload: FeedbackPayload) => {
+  const sendFeedback = async (
+    payload: FeedbackPayload,
+  ): Promise<{ success: boolean; errorCode?: string }> => {
     setLoading(true);
     setError(null);
     try {
@@ -97,9 +100,14 @@ export function useIdentify() {
       setFeatures([]);
       setFeatureSupport({});
       setSampleId(null);
+      return { success: true };
     } catch (err) {
       console.error(err);
-      setError("Failed to submit feedback. Please try again.");
+      const status = axios.isAxiosError(err)
+        ? String(err.response?.status ?? "unknown")
+        : "unknown";
+      setError(`Failed to submit feedback. Please try again.`);
+      return { success: false, errorCode: status };
     } finally {
       setLoading(false);
     }

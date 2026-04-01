@@ -8,6 +8,7 @@ import {
   Button,
   CircularProgress,
   Divider,
+  Snackbar,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import SettingsDialog from "../components/identify/SettingsDialog";
@@ -55,6 +56,25 @@ export default function IdentifyPage() {
   const [demoFiles, setDemoFiles] = React.useState<
     Partial<Record<Plane, { file: File; preview: string }>>
   >({});
+  const [feedbackToast, setFeedbackToast] = React.useState<{
+    open: boolean;
+    severity: "success" | "error";
+    message: string;
+  }>({ open: false, severity: "success", message: "" });
+
+  const closeToast = () => setFeedbackToast((t) => ({ ...t, open: false }));
+
+  const showFeedbackResult = (result: {
+    success: boolean;
+    errorCode?: string;
+  }) =>
+    setFeedbackToast({
+      open: true,
+      severity: result.success ? "success" : "error",
+      message: result.success
+        ? "Feedback submitted successfully!"
+        : `Failed to submit feedback (error ${result.errorCode}).`,
+    });
 
   // Reset corrections whenever a new identification runs (results change)
   React.useEffect(() => {
@@ -82,7 +102,7 @@ export default function IdentifyPage() {
     setDemoFiles((prev) => ({ ...prev, [plane]: { file: f, preview } }));
   };
 
-  const handleCorrect = (label: string) => {
+  const handleCorrect = async (label: string) => {
     if (!sampleId) return;
     const payload: FeedbackPayload = {
       sample_id: sampleId,
@@ -91,7 +111,7 @@ export default function IdentifyPage() {
       feature_corrections:
         featureCorrections.length > 0 ? featureCorrections : undefined,
     };
-    sendFeedback(payload);
+    showFeedbackResult(await sendFeedback(payload));
     setDemoFiles({});
   };
 
@@ -103,7 +123,7 @@ export default function IdentifyPage() {
     setFeedbackOpen(false);
   };
 
-  const handleFeedbackSubmit = (speciesName: string) => {
+  const handleFeedbackSubmit = async (speciesName: string) => {
     if (!sampleId) return;
     const payload: FeedbackPayload = {
       sample_id: sampleId,
@@ -112,7 +132,7 @@ export default function IdentifyPage() {
       feature_corrections:
         featureCorrections.length > 0 ? featureCorrections : undefined,
     };
-    sendFeedback(payload);
+    showFeedbackResult(await sendFeedback(payload));
     setDemoFiles({});
     setFeedbackOpen(false);
   };
@@ -239,6 +259,23 @@ export default function IdentifyPage() {
           onCancel={handleFeedbackCancel}
           onSubmit={handleFeedbackSubmit}
         />
+
+        {/* Feedback Toast */}
+        <Snackbar
+          open={feedbackToast.open}
+          autoHideDuration={feedbackToast.severity === "success" ? 4000 : 8000}
+          onClose={closeToast}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        >
+          <Alert
+            severity={feedbackToast.severity}
+            variant="filled"
+            elevation={6}
+            sx={{ minWidth: 320, borderRadius: 2 }}
+          >
+            {feedbackToast.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </Box>
   );
