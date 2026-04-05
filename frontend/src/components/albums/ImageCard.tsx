@@ -64,12 +64,12 @@ export default function ImageCard({ image, onClick }: ImageCardProps) {
             </Typography>
             <Chip
               label={
-                image.feedback?.correct_label
+                image.feedback && !image.feedback.was_correct
                   ? "Corrected"
                   : `${(top.confidence * 100).toFixed(1)}%`
               }
               color={
-                image.feedback?.correct_label
+                image.feedback && !image.feedback.was_correct
                   ? "default"
                   : (getConfidenceColor(top.confidence) as
                       | "success"
