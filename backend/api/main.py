@@ -1,12 +1,14 @@
 from pydantic import BaseModel
 from fastapi import FastAPI, File, UploadFile, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from typing import List, Optional, Dict
 import os
 import uuid
 import random
 import hashlib
+import csv
+import io
 from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -514,6 +516,62 @@ def get_stats(db: Session = Depends(get_db)):
         "feature_analytics": feature_analytics,
         "federated": federated,
     }
+
+
+@app.get("/export/report")
+def export_report(format: str = "pdf", db: Session = Depends(get_db)):
+    """Export a species summary report as PDF or CSV."""
+
+    # Query all albums with sample counts, sorted alphabetically
+    rows = (
+        db.query(Album.name, func.count(Sample.sample_id).label("samples"))
+        .outerjoin(Sample, Sample.album_id == Album.album_id)
+        .group_by(Album.album_id, Album.name)
+        .order_by(Album.name)
+        .all()
+    )
+    species_data = [(r.name, r.samples) for r in rows]
+    total_species = len(species_data)
+    export_date = datetime.now().strftime("%B %d, %Y at %H:%M")
+
+    # CSV
+    if format == "csv":
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["Species Name", "Sample Count"])
+        for name, count in species_data:
+            writer.writerow([name, count])
+        buf.seek(0)
+        return StreamingResponse(
+            iter([buf.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=petreeblitz_species_report.csv"},
+        )
+
+    # ── Extra stats for the PDF summary bar ───────────────────────────────
+    total_identifications = db.query(Sample).count()
+    total_feedback = db.query(Feedback).count()
+    total_correct = db.query(Feedback).filter(Feedback.was_correct == True).count()
+    accuracy_pct = (
+        f"{round(total_correct / total_feedback * 100)}%" if total_feedback > 0 else "N/A"
+    )
+
+    # PDF
+    from api.pdf_report import generate_pdf
+
+    buf = generate_pdf(
+        species_data=species_data,
+        total_species=total_species,
+        total_identifications=total_identifications,
+        total_feedback=total_feedback,
+        accuracy_pct=accuracy_pct,
+        export_date=export_date,
+    )
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=petreeblitz_species_report.pdf"},
+    )
 
 
 # ===== Startup Event =====

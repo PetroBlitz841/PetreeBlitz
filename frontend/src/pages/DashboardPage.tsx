@@ -16,6 +16,7 @@ import AccuracySection from "../components/dashboard/AccuracySection";
 import FeatureAnalyticsSection from "../components/dashboard/FeatureAnalyticsSection";
 import SpeciesDistribution from "../components/dashboard/SpeciesDistribution";
 import FederatedSection from "../components/dashboard/FederatedSection";
+import ExportReportButton from "../components/dashboard/ExportReportButton";
 
 let statsCache: DashboardStats | null = null;
 
@@ -58,14 +59,24 @@ export default function DashboardPage() {
     >
       <Box sx={{ width: "100%", maxWidth: 1200 }}>
         {/* Header */}
-        <Stack direction="column" spacing={0.5} mb={4}>
-          <Typography variant="h4" color="primary" fontWeight="bold">
-            Model Learning Dashboard
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Track how the identification model grows through expert feedback and
-            collaborative learning
-          </Typography>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          spacing={2}
+          mb={4}
+        >
+          <Stack direction="column" spacing={0.5}>
+            <Typography variant="h4" color="primary" fontWeight="bold">
+              Model Learning Dashboard
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Track how the identification model grows through expert feedback
+              and collaborative learning
+            </Typography>
+          </Stack>
+
+          <ExportReportButton />
         </Stack>
 
         {loading && (
