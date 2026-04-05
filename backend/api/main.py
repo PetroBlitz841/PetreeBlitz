@@ -2,12 +2,13 @@ from pydantic import BaseModel
 from fastapi import FastAPI, File, UploadFile, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from typing import List, Optional
-import pandas as pd
+from typing import List, Optional, Dict
 import os
 import uuid
+import random
+import hashlib
 from datetime import datetime
-import numpy as np
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from db import init_db, get_db, Album, Sample, Feedback, Embedding, FeatureFeedback, SessionLocal
@@ -16,7 +17,7 @@ from model.model_loader import load_resnet18, get_transform
 from model.learning import update_identifier_with_learning
 from model.utils.loader import populate_albums_from_db
 from model.feature_simulator import generate_features, compute_feature_species_support
-from model.iawa_features import FeatureResult
+from model.iawa_features import FeatureResult, FEATURE_BY_ID
 
 # ===== Global State =====
 identifier = None
@@ -359,6 +360,160 @@ def get_album_images(album_id: str, db: Session = Depends(get_db)):
         ))
     
     return result
+
+
+@app.get("/stats")
+def get_stats(db: Session = Depends(get_db)):
+    """Aggregate statistics for the dashboard."""
+
+    # ── Overview KPIs ──────────────────────────────────────────────────────────
+    total_species = db.query(Album).count()
+    total_identifications = db.query(Sample).count()
+    total_feedback = db.query(Feedback).count()
+    total_correct = db.query(Feedback).filter(Feedback.was_correct == True).count()
+    total_incorrect = total_feedback - total_correct
+    total_learned = db.query(Embedding).filter(Embedding.is_learned == True).count()
+    total_original = db.query(Embedding).filter(Embedding.is_learned == False).count()
+    total_feature_corrections = db.query(FeatureFeedback).count()
+    accuracy = round(total_correct / total_feedback, 4) if total_feedback > 0 else None
+
+    overview = {
+        "total_species": total_species,
+        "total_identifications": total_identifications,
+        "total_feedback": total_feedback,
+        "total_learned_embeddings": total_learned,
+        "total_original_embeddings": total_original,
+        "total_feature_corrections": total_feature_corrections,
+    }
+
+    # ── Accuracy ───────────────────────────────────────────────────────────────
+    accuracy_stats = {
+        "correct": total_correct,
+        "incorrect": total_incorrect,
+        "rate": accuracy,
+    }
+
+    # ── Timeline  (identifications + feedback by date) ─────────────────────────
+    id_by_date = (
+        db.query(func.date(Sample.created_at).label("day"), func.count().label("n"))
+        .group_by("day")
+        .order_by("day")
+        .all()
+    )
+    fb_by_date = (
+        db.query(func.date(Feedback.created_at).label("day"), func.count().label("n"))
+        .group_by("day")
+        .order_by("day")
+        .all()
+    )
+    # Merge into a date-keyed dict
+    dates: Dict[str, Dict[str, int]] = {}
+    for row in id_by_date:
+        d = str(row.day) if row.day else "unknown"
+        dates.setdefault(d, {"identifications": 0, "feedback": 0})
+        dates[d]["identifications"] = row.n
+    for row in fb_by_date:
+        d = str(row.day) if row.day else "unknown"
+        dates.setdefault(d, {"identifications": 0, "feedback": 0})
+        dates[d]["feedback"] = row.n
+
+    timeline = [
+        {"date": d, "identifications": v["identifications"], "feedback": v["feedback"]}
+        for d, v in sorted(dates.items())
+    ]
+
+    # ── Species breakdown (top 15 by sample count) ─────────────────────────────
+    species_rows = (
+        db.query(
+            Album.album_id,
+            Album.name,
+            func.count(Sample.sample_id).label("samples"),
+        )
+        .outerjoin(Sample, Sample.album_id == Album.album_id)
+        .group_by(Album.album_id, Album.name)
+        .order_by(func.count(Sample.sample_id).desc())
+        .limit(15)
+        .all()
+    )
+    species_breakdown = [
+        {"album_id": r.album_id, "name": r.name, "samples": r.samples}
+        for r in species_rows
+    ]
+
+    # ── Feature analytics ──────────────────────────────────────────────────────
+    feat_rows = (
+        db.query(
+            FeatureFeedback.feature_id,
+            func.count().label("corrections"),
+            func.avg(FeatureFeedback.importance_weight).label("avg_importance"),
+        )
+        .group_by(FeatureFeedback.feature_id)
+        .order_by(func.count().desc())
+        .all()
+    )
+    feature_analytics = []
+    for r in feat_rows:
+        fdef = FEATURE_BY_ID.get(r.feature_id)
+        feature_analytics.append({
+            "feature_id": r.feature_id,
+            "name": fdef.name if fdef else f"Feature #{r.feature_id}",
+            "category": fdef.category if fdef else "Unknown",
+            "corrections": r.corrections,
+            "avg_importance": round(float(r.avg_importance), 2) if r.avg_importance else 1.0,
+        })
+
+    # ── Federated learning mockup ─────────────────────────────────────────────
+    # Deterministic pseudorandom splits so values are stable per DB state
+    seed = total_identifications + total_feedback + total_species
+    rng = random.Random(seed)
+
+    labs = [
+        {"name": "Lab A — Tel Aviv University",   "region": "Israel"},
+        {"name": "Lab B — University of Georgia",     "region": "United States"},
+        {"name": "Lab C — University of Connecticut",     "region": "United States"},
+        {"name": "Lab D — The University of Melbourne", "region": "Australia"},
+    ]
+    # Create splits that sum to totals
+    def _split(total: int, n: int, r: random.Random) -> List[int]:
+        if total == 0:
+            return [0] * n
+        raw = [r.random() for _ in range(n)]
+        s = sum(raw)
+        parts = [int(total * x / s) for x in raw]
+        parts[0] += total - sum(parts)  # remainder to first
+        return parts
+
+    id_splits = _split(total_identifications, len(labs), rng)
+    fb_splits = _split(total_feedback, len(labs), rng)
+    fc_splits = _split(total_feature_corrections, len(labs), rng)
+
+    version_hash = hashlib.md5(f"{seed}".encode()).hexdigest()[:6]
+    model_version = f"v{1 + total_feedback // 10}.{total_feedback % 10}.{total_feature_corrections % 100}"
+
+    federated = {
+        "labs": [
+            {
+                "name": lab["name"],
+                "region": lab["region"],
+                "identifications": id_splits[i],
+                "feedback": fb_splits[i],
+                "feature_corrections": fc_splits[i],
+            }
+            for i, lab in enumerate(labs)
+        ],
+        "model_version": model_version,
+        "total_sync_updates": total_feedback + total_feature_corrections,
+        "version_hash": version_hash,
+    }
+
+    return {
+        "overview": overview,
+        "accuracy": accuracy_stats,
+        "timeline": timeline,
+        "species_breakdown": species_breakdown,
+        "feature_analytics": feature_analytics,
+        "federated": federated,
+    }
 
 
 # ===== Startup Event =====

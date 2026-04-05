@@ -8,6 +8,7 @@ import {
   Divider,
 } from "@mui/material";
 import CollectionsIcon from "@mui/icons-material/Collections";
+import BarChartIcon from "@mui/icons-material/BarChart";
 import { Link, useLocation } from "react-router-dom";
 import { Biotech } from "@mui/icons-material";
 
@@ -17,6 +18,11 @@ const navItems = [
     label: "Albums",
     to: "/albums",
     icon: <CollectionsIcon fontSize="small" />,
+  },
+  {
+    label: "Dashboard",
+    to: "/dashboard",
+    icon: <BarChartIcon fontSize="small" />,
   },
 ];
 

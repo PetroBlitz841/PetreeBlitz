@@ -6,6 +6,7 @@ import { Routes, Route } from "react-router-dom";
 import IdentifyPage from "./pages/IdentifyPage";
 import AlbumsPage from "./pages/AlbumsPage";
 import AlbumDetailsPage from "./pages/AlbumDetailsPage";
+import DashboardPage from "./pages/DashboardPage";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="/" element={<IdentifyPage />} />
           <Route path="/albums" element={<AlbumsPage />} />
           <Route path="/albums/:id" element={<AlbumDetailsPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
         </Routes>
       </Box>
 

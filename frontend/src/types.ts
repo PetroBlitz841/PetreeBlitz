@@ -97,3 +97,64 @@ export interface Image {
   };
   timestamp: string;
 }
+
+// ── Dashboard stats ──────────────────────────────────────────────────────────
+
+export interface OverviewStats {
+  total_species: number;
+  total_identifications: number;
+  total_feedback: number;
+  total_learned_embeddings: number;
+  total_original_embeddings: number;
+  total_feature_corrections: number;
+}
+
+export interface AccuracyStats {
+  correct: number;
+  incorrect: number;
+  rate: number | null;
+}
+
+export interface TimelineEntry {
+  date: string;
+  identifications: number;
+  feedback: number;
+}
+
+export interface SpeciesBreakdownEntry {
+  album_id: string;
+  name: string;
+  samples: number;
+}
+
+export interface FeatureAnalyticsEntry {
+  feature_id: number;
+  name: string;
+  category: string;
+  corrections: number;
+  avg_importance: number;
+}
+
+export interface FederatedLab {
+  name: string;
+  region: string;
+  identifications: number;
+  feedback: number;
+  feature_corrections: number;
+}
+
+export interface FederatedStats {
+  labs: FederatedLab[];
+  model_version: string;
+  total_sync_updates: number;
+  version_hash: string;
+}
+
+export interface DashboardStats {
+  overview: OverviewStats;
+  accuracy: AccuracyStats;
+  timeline: TimelineEntry[];
+  species_breakdown: SpeciesBreakdownEntry[];
+  feature_analytics: FeatureAnalyticsEntry[];
+  federated: FederatedStats;
+}
