@@ -10,7 +10,6 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-from reportlab.graphics.shapes import Drawing, Rect, String
 
 # ── Brand colours ─────────────────────────────────────────────────────────
 GREEN = colors.HexColor("#2e7d32")
